@@ -3,10 +3,22 @@
 import { useState, useTransition } from "react";
 import { SaveDot, useAutosave } from "@/components/autosave";
 import { Card, SectionTitle } from "@/components/ui";
-import { addIssues, setMetricValue, setPriorityCheck, submitPrep } from "@/app/actions";
-import { createPriority } from "@/app/actions";
+import {
+  addIssues,
+  createPriority,
+  createTodo,
+  setMetricValue,
+  setPriorityCheck,
+  submitPrep,
+} from "@/app/actions";
 import { nextMonday } from "@/lib/dates";
-import { NO_STEP_PROMPT, splitBrainDump, type GroupedPriorities, type PriorityGroup } from "@/lib/rules";
+import {
+  NO_STEP_PROMPT,
+  STEP_OVERFLOW_PROMPT,
+  splitBrainDump,
+  type GroupedPriorities,
+  type PriorityGroup,
+} from "@/lib/rules";
 import type { Metric, Priority } from "@/lib/types";
 
 export interface PrepMetric {
@@ -84,6 +96,7 @@ function PriorityRow({
   indent = false,
   ownerName,
   towards,
+  readOnly = false,
 }: {
   meetingId: string;
   priority: Priority;
@@ -93,6 +106,8 @@ function PriorityRow({
   ownerName?: string;
   /** The monthly goal this step serves, when its parent isn't on this screen. */
   towards?: string;
+  /** Someone else's step under my goal: visible so I know the goal is covered, but theirs to tick. */
+  readOnly?: boolean;
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
   const [, startTransition] = useTransition();
@@ -117,30 +132,44 @@ function PriorityRow({
           {towards ? ` · toward "${towards}"` : ""}
         </p>
       </div>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => choose(true)}
-          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+      {readOnly ? (
+        <span
+          className={`pill shrink-0 ${
             onTrack === true
-              ? "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
-              : "border-(--color-line) hover:bg-(--color-grey-bg)"
+              ? "bg-(--color-on-bg) text-(--color-on)"
+              : onTrack === false
+                ? "bg-(--color-off-bg) text-(--color-off)"
+                : "bg-(--color-grey-bg) text-(--color-muted)"
           }`}
         >
-          On
-        </button>
-        <button
-          type="button"
-          onClick={() => choose(false)}
-          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-            onTrack === false
-              ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-              : "border-(--color-line) hover:bg-(--color-grey-bg)"
-          }`}
-        >
-          Off
-        </button>
-      </div>
+          {onTrack === true ? "on" : onTrack === false ? "off" : "theirs to review"}
+        </span>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => choose(true)}
+            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+              onTrack === true
+                ? "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+                : "border-(--color-line) hover:bg-(--color-grey-bg)"
+            }`}
+          >
+            On
+          </button>
+          <button
+            type="button"
+            onClick={() => choose(false)}
+            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+              onTrack === false
+                ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
+                : "border-(--color-line) hover:bg-(--color-grey-bg)"
+            }`}
+          >
+            Off
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -154,20 +183,29 @@ function StepAdder({
   ownerId,
   people,
   parentId,
+  meetingId,
   meetingDate,
   urgent,
+  atCap,
 }: {
   ownerId: string;
   people: { id: string; name: string }[];
   parentId: string;
+  meetingId: string;
   meetingDate: string;
   urgent: boolean;
+  atCap: boolean;
 }) {
   const [text, setText] = useState("");
   // A step is where the goal meets a person, and it need not be the person who owns the
   // goal — a Marketing goal can cascade to Nick. Exactly one name, per R3.
   const [stepOwner, setStepOwner] = useState(ownerId);
   const [pending, startTransition] = useTransition();
+
+  // Past the cap the same box keeps working, but what it creates changes: a to-do rather
+  // than a step. The work still gets captured — it just stops inflating the priorities
+  // board and lands where it's reviewed done/not-done in five minutes.
+  const submit = atCap ? createTodo : createPriority;
 
   return (
     <div
@@ -178,12 +216,16 @@ function StepAdder({
       {urgent ? (
         <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{NO_STEP_PROMPT}</p>
       ) : null}
+      {atCap ? (
+        <p className="text-[0.85rem] text-(--color-muted) mb-2">{STEP_OVERFLOW_PROMPT}</p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         {/* Outside the form: React resets fields inside a form action on completion. */}
         <select
           value={stepOwner}
           onChange={(e) => setStepOwner(e.target.value)}
-          aria-label="Who owns this step"
+          aria-label={atCap ? "Who owns this to-do" : "Who owns this step"}
           className="px-3 py-2 rounded-xl border border-(--color-line) bg-(--color-panel)"
         >
           {people.map((p) => (
@@ -196,22 +238,37 @@ function StepAdder({
         <form
           action={(fd) =>
             startTransition(async () => {
-              await createPriority(fd);
+              await submit(fd);
               setText("");
             })
           }
           className="flex-1 min-w-[16rem] flex flex-wrap gap-2"
         >
           <input type="hidden" name="owner_id" value={stepOwner} />
-          <input type="hidden" name="parent_id" value={parentId} />
-          <input type="hidden" name="horizon" value="week" />
           <input type="hidden" name="due_date" value={nextMonday(meetingDate)} />
+          {atCap ? (
+            <>
+              <input type="hidden" name="created_meeting_id" value={meetingId} />
+              <input type="hidden" name="source" value="declared" />
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="parent_id" value={parentId} />
+              <input type="hidden" name="horizon" value="week" />
+            </>
+          )}
           <input
             name="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={urgent ? "Create 3 new ad creatives" : "Another step this week"}
-            aria-label="This week's step"
+            placeholder={
+              atCap
+                ? "Something else that needs doing this week"
+                : urgent
+                  ? "Create 3 new ad creatives"
+                  : "Another step this week"
+            }
+            aria-label={atCap ? "New to-do" : "This week's step"}
             className="flex-1 min-w-[13rem] px-3 py-2 rounded-xl border border-(--color-line)"
           />
           <button
@@ -223,7 +280,7 @@ function StepAdder({
                 : "border border-(--color-line) hover:bg-(--color-grey-bg)"
             }`}
           >
-            Add step
+            {atCap ? "Add to-do" : "Add step"}
           </button>
         </form>
       </div>
@@ -264,14 +321,17 @@ function PriorityGroupBlock({
           indent
           // Only name the owner when it isn't the person reading the screen.
           ownerName={s.owner_id === ownerId ? undefined : nameOf(s.owner_id)}
+          readOnly={s.owner_id !== ownerId}
         />
       ))}
       <StepAdder
         ownerId={ownerId}
         people={people}
         parentId={group.parent.id}
+        meetingId={meetingId}
         meetingDate={meetingDate}
         urgent={group.needsStep}
+        atCap={group.atStepCap}
       />
     </div>
   );

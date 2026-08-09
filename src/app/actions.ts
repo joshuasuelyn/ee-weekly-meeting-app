@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { requireFacilitator, requireUser } from "@/lib/auth";
 import { getStore } from "@/lib/db";
-import { today } from "@/lib/queries";
+import { getOrCreateCurrentMeeting, today } from "@/lib/queries";
 import {
   assertSingleOwner,
+  canAddStep,
   canParentPriority,
   canSolveIssue,
   completionFor,
@@ -100,11 +101,17 @@ export async function createPriority(formData: FormData) {
   let scope = (String(formData.get("scope") ?? "individual") as PriorityScope) ?? "individual";
 
   if (parentId) {
-    const parent = (await store.listPriorities()).find((p) => p.id === parentId);
+    const all = await store.listPriorities();
+    const parent = all.find((p) => p.id === parentId);
     if (!parent) throw new Error("That monthly priority no longer exists.");
 
     const gate = canParentPriority(parent, horizon);
     if (!gate.allowed) throw new Error(gate.message);
+
+    // The three-step ceiling, enforced here as well as in the UI.
+    const meetingDate = (await getOrCreateCurrentMeeting()).date;
+    const cap = canAddStep(parentId, all, meetingDate);
+    if (!cap.allowed) throw new Error(cap.message);
 
     // A step belongs to whatever its monthly priority belongs to — a weekly step toward a
     // department goal is department work, whoever happens to be doing it.

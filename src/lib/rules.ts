@@ -135,7 +135,19 @@ export function isBeyondTodoHorizon(dueDate: string, from: string): boolean {
 /** A weekly step counts if it lands inside the week the meeting opens. */
 export const STEP_WINDOW_DAYS = 7;
 
-export const NO_STEP_PROMPT = "No step this week. What moves this forward by next Monday?";
+/**
+ * Steps are checkpoints, not a work breakdown. Without a ceiling the board measures who
+ * writes things down rather than who delivers: the manager who lists thirty items looks
+ * buried while the one who lists none looks idle, and section 3 stops fitting in its five
+ * minutes. Three is the same ceiling R9 puts on issues, for the same reason.
+ */
+export const MAX_STEPS_PER_WEEK = 3;
+
+/** Singular and verifiable on purpose — "what will be done", not "what will I work on". */
+export const NO_STEP_PROMPT = "No step this week. What will be visibly done by next Monday?";
+
+export const STEP_OVERFLOW_PROMPT =
+  "Three steps is the limit for one goal. Anything beyond that is a to-do, not a priority — put it on the to-do list and it gets reviewed done/not-done on Monday.";
 
 export function canParentPriority(parent: Priority, childHorizon: Horizon): Gate {
   if (parent.horizon !== "month") {
@@ -164,19 +176,39 @@ export function stepsFor(parentId: string, priorities: Priority[]): Priority[] {
 }
 
 /**
- * Does this monthly priority have a step landing in the coming week? A date range rather
- * than an exact match, so hand-editing a due date by a day doesn't silently void the step.
- * A step already done still counts — nobody should be nagged for finishing early.
+ * Steps on this monthly priority landing inside the coming week. A date range rather than
+ * an exact match, so hand-editing a due date by a day doesn't silently void a step. A step
+ * already done still counts — nobody should be nagged for finishing early.
  */
+export function stepsThisWeek(
+  parentId: string,
+  priorities: Priority[],
+  meetingDate: string,
+): Priority[] {
+  const windowEnd = addDays(meetingDate, STEP_WINDOW_DAYS);
+  return stepsFor(parentId, priorities).filter(
+    (s) => s.due_date > meetingDate && s.due_date <= windowEnd,
+  );
+}
+
 export function hasStepForWeek(
   parentId: string,
   priorities: Priority[],
   meetingDate: string,
 ): boolean {
-  const windowEnd = addDays(meetingDate, STEP_WINDOW_DAYS);
-  return stepsFor(parentId, priorities).some(
-    (s) => s.due_date > meetingDate && s.due_date <= windowEnd,
-  );
+  return stepsThisWeek(parentId, priorities, meetingDate).length > 0;
+}
+
+/** The ceiling. Blocks a fourth step and says where the work actually belongs. */
+export function canAddStep(
+  parentId: string,
+  priorities: Priority[],
+  meetingDate: string,
+): Gate {
+  const used = stepsThisWeek(parentId, priorities, meetingDate).length;
+  return used >= MAX_STEPS_PER_WEEK
+    ? { allowed: false, message: STEP_OVERFLOW_PROMPT }
+    : { allowed: true, message: "" };
 }
 
 export function monthlyPrioritiesNeedingStep(
@@ -195,6 +227,8 @@ export interface PriorityGroup {
   parent: Priority;
   steps: Priority[];
   needsStep: boolean;
+  /** True once this goal has its three steps for the week — further work is a to-do. */
+  atStepCap: boolean;
 }
 
 export interface GroupedPriorities {
@@ -209,30 +243,44 @@ export interface GroupedPriorities {
  * all call it, so a priority can never appear under one heading in the meeting and a
  * different one in the export.
  */
-export function groupPriorities(priorities: Priority[], meetingDate: string): GroupedPriorities {
+export function groupPriorities(
+  mine: Priority[],
+  meetingDate: string,
+  /**
+   * Every priority in play, when `mine` is one person's slice. A goal's steps belong to
+   * the goal, not to the viewer — cascade three steps to three people and the owner still
+   * has to see all three, or the cap counts one and the amber nudge fires on a goal that
+   * is already covered. Defaults to `mine` for callers that pass the whole board.
+   */
+  all: Priority[] = mine,
+): GroupedPriorities {
   const byCreated = (a: Priority, b: Priority) => a.created_at.localeCompare(b.created_at);
 
-  const monthly = priorities
-    .filter((p) => p.horizon !== "week" && p.status === "open")
-    .sort(byCreated);
+  const monthly = mine.filter((p) => p.horizon !== "week" && p.status === "open").sort(byCreated);
 
-  const toGroup = (parent: Priority): PriorityGroup => ({
-    parent,
-    steps: stepsFor(parent.id, priorities),
-    needsStep: !hasStepForWeek(parent.id, priorities, meetingDate),
-  });
+  const toGroup = (parent: Priority): PriorityGroup => {
+    const thisWeek = stepsThisWeek(parent.id, all, meetingDate);
+    return {
+      parent,
+      steps: stepsFor(parent.id, all),
+      needsStep: thisWeek.length === 0,
+      atStepCap: thisWeek.length >= MAX_STEPS_PER_WEEK,
+    };
+  };
 
-  const parentIds = new Set(monthly.map((p) => p.id));
+  // Orphan detection uses the parents on *this* screen: a step I own under someone else's
+  // goal has to surface somewhere, and their goal isn't shown here.
+  const shownParentIds = new Set(monthly.map((p) => p.id));
 
   return {
     department: monthly.filter((p) => p.scope === "department").map(toGroup),
     individual: monthly.filter((p) => p.scope !== "department").map(toGroup),
-    orphanWeeklies: priorities
+    orphanWeeklies: mine
       .filter(
         (p) =>
           p.horizon === "week" &&
           p.status === "open" &&
-          (p.parent_id === null || !parentIds.has(p.parent_id)),
+          (p.parent_id === null || !shownParentIds.has(p.parent_id)),
       )
       .sort(byCreated),
   };

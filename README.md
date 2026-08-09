@@ -67,6 +67,14 @@ forward — one level deep, enforced by `canParentPriority`. A step inherits its
 scope, and a department priority's department comes from the owner's `users.department`,
 so there is no second place for either to disagree.
 
+**Three steps per goal per week is the ceiling** (`canAddStep`, same number as R9's issue
+cap). Past it the same box keeps working but creates a **to-do** instead — the work is
+still captured, it just stops inflating the priorities board. Without a ceiling the board
+measures who writes things down rather than who delivers: the manager who lists thirty
+items looks buried while the one who lists none looks idle, and section 3 stops fitting in
+five minutes. The cap counts every step on the goal regardless of owner, so cascading to
+three people fills it exactly like doing all three yourself.
+
 The forcing function is `monthlyPrioritiesNeedingStep`: a monthly priority with nothing
 due in the coming week renders **amber** with *"No step this week"* and an inline box to
 add one. It never blocks submitting — it's a nudge in the same weight class as R4, not a

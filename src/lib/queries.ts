@@ -209,7 +209,8 @@ export async function loadPrep(user: User) {
       lastValue: previousValues.find((v) => v.metric_id === metric.id)?.value ?? null,
     })),
     myPriorities,
-    grouped: groupPriorities(myPriorities, meeting.date),
+    // Second argument is the whole board: my goals, but every step hanging off them.
+    grouped: groupPriorities(myPriorities, meeting.date, priorities),
     /** Everyone a weekly step can be handed to — the cascade runs to people, not to roles. */
     people: users.map((u) => ({ id: u.id, name: u.name })),
     /**

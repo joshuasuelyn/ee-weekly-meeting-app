@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   assertSingleOwner,
   buildScorecard,
+  canAddStep,
   canParentPriority,
+  MAX_STEPS_PER_WEEK,
   canSelectMoreIssues,
   canSolveIssue,
   groupPriorities,
@@ -478,6 +480,96 @@ describe("priorities — scope, and monthly broken into weekly", () => {
       expect(hasStepForWeek("m1", [monthly(), step({ parent_id: "somewhere-else" })], MEETING)).toBe(
         false,
       );
+    });
+  });
+
+  describe("the three-step ceiling", () => {
+    const withSteps = (n: number) => [
+      monthly(),
+      ...Array.from({ length: n }, (_, i) => step({ id: `s${i}`, due_date: "2026-08-17" })),
+    ];
+
+    it("allows up to the cap in one week", () => {
+      expect(MAX_STEPS_PER_WEEK).toBe(3);
+      expect(canAddStep("m1", withSteps(0), MEETING).allowed).toBe(true);
+      expect(canAddStep("m1", withSteps(MAX_STEPS_PER_WEEK - 1), MEETING).allowed).toBe(true);
+    });
+
+    it("blocks the fourth, and says where the work belongs", () => {
+      const gate = canAddStep("m1", withSteps(3), MEETING);
+      expect(gate.allowed).toBe(false);
+      expect(gate.message).toMatch(/to-do/i);
+    });
+
+    it("counts only this week — last week's steps don't use up the allowance", () => {
+      const list = [
+        monthly(),
+        ...Array.from({ length: 3 }, (_, i) => step({ id: `old${i}`, due_date: "2026-08-03" })),
+      ];
+      expect(canAddStep("m1", list, MEETING).allowed).toBe(true);
+    });
+
+    it("counts steps cascaded to other people — the cap is per goal, not per viewer", () => {
+      // May's goal, three steps handed to three different people. Her own slice shows one
+      // step; the goal is full. Counting her slice alone would let her add forever.
+      const mine = [monthly({ owner_id: "may" }), step({ id: "s1", owner_id: "may" })];
+      const all = [
+        ...mine,
+        step({ id: "s2", owner_id: "nick" }),
+        step({ id: "s3", owner_id: "esther" }),
+      ];
+
+      expect(canAddStep("m1", all, MEETING).allowed).toBe(false);
+
+      const grouped = groupPriorities(mine, MEETING, all);
+      expect(grouped.department[0].atStepCap).toBe(true);
+      expect(grouped.department[0].steps).toHaveLength(3);
+    });
+
+    it("clears the amber nudge when the only step went to someone else", () => {
+      const mine = [monthly({ owner_id: "may" })];
+      const all = [...mine, step({ id: "s1", owner_id: "nick" })];
+
+      expect(groupPriorities(mine, MEETING, all).department[0].needsStep).toBe(false);
+      // Counting only her own slice would wrongly nag her.
+      expect(groupPriorities(mine, MEETING).department[0].needsStep).toBe(true);
+    });
+
+    it("still surfaces a step I own under someone else's goal", () => {
+      const mine = [step({ id: "handed", owner_id: "nick", parent_id: "someone-elses-goal" })];
+      const all = [monthly({ id: "someone-elses-goal", owner_id: "may" }), ...mine];
+
+      expect(groupPriorities(mine, MEETING, all).orphanWeeklies.map((p) => p.id)).toEqual([
+        "handed",
+      ]);
+    });
+
+    it("counts per goal, not per person", () => {
+      const list = [
+        monthly({ id: "a" }),
+        monthly({ id: "b" }),
+        ...Array.from({ length: 3 }, (_, i) =>
+          step({ id: `sa${i}`, parent_id: "a", due_date: "2026-08-17" }),
+        ),
+      ];
+      expect(canAddStep("a", list, MEETING).allowed).toBe(false);
+      expect(canAddStep("b", list, MEETING).allowed).toBe(true);
+    });
+
+    it("ignores dropped steps when counting", () => {
+      const list = [
+        monthly(),
+        step({ id: "s1", due_date: "2026-08-17" }),
+        step({ id: "s2", due_date: "2026-08-17" }),
+        step({ id: "s3", due_date: "2026-08-17", status: "dropped" }),
+      ];
+      expect(canAddStep("m1", list, MEETING).allowed).toBe(true);
+    });
+
+    it("flags the cap on the group so the UI can switch to a to-do box", () => {
+      const grouped = groupPriorities(withSteps(3), MEETING);
+      expect(grouped.department[0].atStepCap).toBe(true);
+      expect(grouped.department[0].needsStep).toBe(false);
     });
   });
 
