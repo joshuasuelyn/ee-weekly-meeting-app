@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/*
+  Sized for a shared screen. The facilitator projects this during the meeting and the spec
+  asks for legibility at 1.5x zoom, so the base scale is a notch larger than a typical
+  dashboard and nothing important is rendered in a small grey font.
+*/
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-ink: oklch(0.22 0.02 260);
+  --color-muted: oklch(0.52 0.02 260);
+  --color-line: oklch(0.91 0.01 260);
+  --color-surface: oklch(0.99 0.002 260);
+  --color-panel: oklch(1 0 0);
+
+  --color-on: oklch(0.58 0.15 150);
+  --color-on-bg: oklch(0.95 0.05 150);
+  --color-off: oklch(0.56 0.21 25);
+  --color-off-bg: oklch(0.95 0.05 25);
+  --color-amber: oklch(0.68 0.16 70);
+  --color-amber-bg: oklch(0.95 0.06 80);
+  --color-grey: oklch(0.6 0.01 260);
+  --color-grey-bg: oklch(0.95 0.005 260);
+  --color-accent: oklch(0.5 0.15 260);
+}
+
+html {
+  font-size: 17px;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Number inputs on the prep screen: no spinners, tabular figures so a column of numbers
+   lines up when read aloud. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+}
+
+@utility pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
