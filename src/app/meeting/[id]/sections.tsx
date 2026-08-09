@@ -22,7 +22,13 @@ import {
 } from "@/app/actions";
 import { COMPLETION_TARGET, MAX_ISSUES_PER_MEETING, splitBrainDump } from "@/lib/rules";
 import { formatShortDate } from "@/lib/dates";
-import type { RunnerData, RunnerIssue, RunnerPerson, RunnerScorecardRow } from "./data";
+import type {
+  RunnerData,
+  RunnerIssue,
+  RunnerPerson,
+  RunnerPriority,
+  RunnerScorecardRow,
+} from "./data";
 import { TodoComposer } from "./todo-composer";
 
 // ---------------------------------------------------------------------------
@@ -223,6 +229,86 @@ export function ScorecardSection({ data }: { data: RunnerData }) {
 // 3 · Priorities
 // ---------------------------------------------------------------------------
 
+function PriorityLine({
+  priority,
+  onTrack,
+  routed,
+  indent,
+  onChoose,
+  onRoute,
+  onDone,
+}: {
+  priority: RunnerPriority;
+  onTrack: boolean | null;
+  routed: boolean;
+  indent: boolean;
+  onChoose: (next: boolean) => void;
+  onRoute: () => void;
+  onDone: () => void;
+}) {
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0 ${
+        indent ? "pl-4 ml-1 border-l-2 border-l-(--color-line)" : ""
+      }`}
+    >
+      <div className="flex-1 min-w-[14rem]">
+        <p className={indent ? "text-[0.95rem]" : "font-medium"}>{priority.text}</p>
+        <p className="text-[0.8rem] text-(--color-muted)">
+          {indent ? "step" : priority.horizon === "week" ? "this week" : "this month"} · due{" "}
+          {formatShortDate(priority.dueDate)}
+          {indent ? "" : ` · ${priority.ownerName}`}
+          {priority.needsStep ? (
+            <span className="text-(--color-amber) font-medium"> · no step this week</span>
+          ) : null}
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onChoose(true)}
+          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+            onTrack === true
+              ? "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+              : "border-(--color-line)"
+          }`}
+        >
+          On
+        </button>
+        <button
+          type="button"
+          onClick={() => onChoose(false)}
+          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+            onTrack === false
+              ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
+              : "border-(--color-line)"
+          }`}
+        >
+          Off
+        </button>
+        {onTrack === false ? (
+          <button
+            type="button"
+            disabled={routed}
+            onClick={onRoute}
+            className="px-3 py-1.5 rounded-lg border border-(--color-off) text-(--color-off) font-medium disabled:opacity-40"
+          >
+            {routed ? "→ Added" : "→ Issue"}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onDone}
+          className="px-3 py-1.5 rounded-lg border border-(--color-line) text-(--color-muted)"
+          title="Close this priority"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PrioritiesSection({ data }: { data: RunnerData }) {
   const [, startTransition] = useTransition();
   const [checks, setChecks] = useState<Record<string, boolean | null>>(
@@ -230,20 +316,71 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
   );
   const [routed, setRouted] = useState<Record<string, boolean>>({});
 
-  const byOwner = useMemo(() => {
-    const groups = new Map<string, typeof data.priorities>();
-    for (const p of data.priorities) {
-      const list = groups.get(p.ownerName) ?? [];
-      list.push(p);
-      groups.set(p.ownerName, list);
-    }
-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  /**
+   * Department priorities first, grouped by department; then individual ones by owner.
+   * This is where the cross-department view lives — the prep screen deliberately shows a
+   * manager only their own, so the meeting is the first time everyone sees the whole board.
+   */
+  const { deptSections, mineSections, looseSections } = useMemo(() => {
+    const monthlies = data.priorities.filter((p) => p.horizon !== "week");
+    const parentIds = new Set(monthlies.map((p) => p.id));
+
+    const group = (items: RunnerPriority[], key: (p: RunnerPriority) => string) => {
+      const map = new Map<string, RunnerPriority[]>();
+      for (const p of items) map.set(key(p), [...(map.get(key(p)) ?? []), p]);
+      return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+    };
+
+    return {
+      deptSections: group(
+        monthlies.filter((p) => p.scope === "department"),
+        (p) => p.department,
+      ),
+      mineSections: group(
+        monthlies.filter((p) => p.scope !== "department"),
+        (p) => p.ownerName,
+      ),
+      looseSections: group(
+        data.priorities.filter(
+          (p) => p.horizon === "week" && (!p.parentId || !parentIds.has(p.parentId)),
+        ),
+        (p) => p.ownerName,
+      ),
+    };
   }, [data.priorities]);
+
+  const stepsOf = (parentId: string) => data.priorities.filter((p) => p.parentId === parentId);
 
   function choose(id: string, next: boolean) {
     setChecks((c) => ({ ...c, [id]: next }));
     startTransition(() => void setPriorityCheck(data.meeting.id, id, next));
   }
+
+  const lineProps = (p: RunnerPriority) => ({
+    priority: p,
+    onTrack: checks[p.id] ?? null,
+    routed: Boolean(routed[p.id]),
+    onChoose: (next: boolean) => choose(p.id, next),
+    onRoute: () => {
+      setRouted((r) => ({ ...r, [p.id]: true }));
+      startTransition(() => void createIssueFromPriority(p.id, data.meeting.date));
+    },
+    onDone: () => startTransition(() => void setPriorityStatus(p.id, "done")),
+  });
+
+  const block = (heading: string, parents: RunnerPriority[]) => (
+    <div key={heading} className="mb-5">
+      <h3 className="font-semibold text-[0.95rem] mb-1">{heading}</h3>
+      {parents.map((parent) => (
+        <div key={parent.id} className="mb-3 last:mb-0">
+          <PriorityLine {...lineProps(parent)} indent={false} />
+          {stepsOf(parent.id).map((s) => (
+            <PriorityLine key={s.id} {...lineProps(s)} indent />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -255,74 +392,41 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
       {data.priorities.length === 0 ? (
         <Empty>No open priorities. Managers declare them on their prep screen.</Empty>
       ) : (
-        byOwner.map(([owner, list]) => (
-          <div key={owner} className="mb-5">
-            <h3 className="font-semibold text-[0.95rem] mb-1">{owner}</h3>
-            {list.map((p) => {
-              const onTrack = checks[p.id];
-              return (
-                <div
-                  key={p.id}
-                  className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0"
-                >
-                  <div className="flex-1 min-w-[14rem]">
-                    <p>{p.text}</p>
-                    <p className="text-[0.8rem] text-(--color-muted) capitalize">
-                      {p.horizon}ly · due {formatShortDate(p.dueDate)}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => choose(p.id, true)}
-                      className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-                        onTrack === true
-                          ? "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
-                          : "border-(--color-line)"
-                      }`}
-                    >
-                      On
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => choose(p.id, false)}
-                      className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-                        onTrack === false
-                          ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-                          : "border-(--color-line)"
-                      }`}
-                    >
-                      Off
-                    </button>
-                    {onTrack === false ? (
-                      <button
-                        type="button"
-                        disabled={routed[p.id]}
-                        onClick={() => {
-                          setRouted((r) => ({ ...r, [p.id]: true }));
-                          startTransition(
-                            () => void createIssueFromPriority(p.id, data.meeting.date),
-                          );
-                        }}
-                        className="px-3 py-1.5 rounded-lg border border-(--color-off) text-(--color-off) font-medium disabled:opacity-40"
-                      >
-                        {routed[p.id] ? "→ Added" : "→ Issue"}
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => startTransition(() => void setPriorityStatus(p.id, "done"))}
-                      className="px-3 py-1.5 rounded-lg border border-(--color-line) text-(--color-muted)"
-                      title="Close this priority"
-                    >
-                      Done
-                    </button>
-                  </div>
+        <>
+          {deptSections.length > 0 ? (
+            <>
+              <p className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-2">
+                Department
+              </p>
+              {deptSections.map(([dept, list]) => block(dept, list))}
+            </>
+          ) : null}
+
+          {mineSections.length > 0 ? (
+            <>
+              <p className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-2">
+                Individual
+              </p>
+              {mineSections.map(([owner, list]) => block(owner, list))}
+            </>
+          ) : null}
+
+          {looseSections.length > 0 ? (
+            <>
+              <p className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-2">
+                This week only
+              </p>
+              {looseSections.map(([owner, list]) => (
+                <div key={owner} className="mb-5">
+                  <h3 className="font-semibold text-[0.95rem] mb-1">{owner}</h3>
+                  {list.map((p) => (
+                    <PriorityLine key={p.id} {...lineProps(p)} indent={false} />
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        ))
+              ))}
+            </>
+          ) : null}
+        </>
       )}
     </>
   );

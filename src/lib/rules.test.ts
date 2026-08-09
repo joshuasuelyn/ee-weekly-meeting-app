@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   assertSingleOwner,
   buildScorecard,
+  canParentPriority,
   canSelectMoreIssues,
   canSolveIssue,
+  groupPriorities,
+  hasStepForWeek,
+  monthlyPrioritiesNeedingStep,
   carryLevel,
   completionFor,
   computeCarryForward,
@@ -18,8 +22,15 @@ import {
   staleIssues,
   weeksOpen,
 } from "./rules";
-import { mondayOf, nextMeetingDate, nextMonday, rolloutWeek } from "./dates";
-import type { Issue, Meeting, Metric, Settings, Todo } from "./types";
+import {
+  endOfMonth,
+  isFirstMondayOfMonth,
+  mondayOf,
+  nextMeetingDate,
+  nextMonday,
+  rolloutWeek,
+} from "./dates";
+import type { Issue, Meeting, Metric, Priority, Settings, Todo } from "./types";
 
 const metric = (over: Partial<Metric> = {}): Metric => ({
   id: "m1",
@@ -384,6 +395,162 @@ describe("R11 — brain dump splitting", () => {
 
   it("returns nothing for whitespace only", () => {
     expect(splitBrainDump("\n\n   \n")).toEqual([]);
+  });
+});
+
+describe("priorities — scope, and monthly broken into weekly", () => {
+  const MEETING = "2026-08-10";
+
+  const monthly = (over: Partial<Priority> = {}): Priority => ({
+    id: "m1",
+    text: "Cost per lead under RM12",
+    owner_id: "u1",
+    horizon: "month",
+    due_date: "2026-08-31",
+    status: "open",
+    created_at: "2026-08-03T00:00:00.000Z",
+    scope: "department",
+    parent_id: null,
+    ...over,
+  });
+
+  const step = (over: Partial<Priority> = {}): Priority => ({
+    id: "s1",
+    text: "Rebuild the top 3 ad creatives",
+    owner_id: "u1",
+    horizon: "week",
+    due_date: "2026-08-17",
+    status: "open",
+    created_at: "2026-08-10T00:00:00.000Z",
+    scope: "department",
+    parent_id: "m1",
+    ...over,
+  });
+
+  describe("what may parent what", () => {
+    it("lets a monthly priority take weekly steps", () => {
+      expect(canParentPriority(monthly(), "week").allowed).toBe(true);
+    });
+
+    it("refuses a weekly priority as a parent, with a reason", () => {
+      const gate = canParentPriority(monthly({ horizon: "week" }), "week");
+      expect(gate.allowed).toBe(false);
+      expect(gate.message).toMatch(/monthly priority/i);
+    });
+
+    it("refuses a monthly step under a monthly priority", () => {
+      expect(canParentPriority(monthly(), "month").allowed).toBe(false);
+    });
+
+    it("refuses grandchildren — one level only", () => {
+      const gate = canParentPriority(monthly({ parent_id: "other" }), "week");
+      expect(gate.allowed).toBe(false);
+      expect(gate.message).toMatch(/one level/i);
+    });
+  });
+
+  describe("does it have a step this week", () => {
+    it("counts a step due inside the coming week", () => {
+      expect(hasStepForWeek("m1", [monthly(), step()], MEETING)).toBe(true);
+    });
+
+    it("ignores a step due beyond the coming week", () => {
+      expect(hasStepForWeek("m1", [monthly(), step({ due_date: "2026-08-24" })], MEETING)).toBe(
+        false,
+      );
+    });
+
+    it("ignores a step that was already due before this meeting", () => {
+      expect(hasStepForWeek("m1", [monthly(), step({ due_date: "2026-08-03" })], MEETING)).toBe(
+        false,
+      );
+    });
+
+    it("still counts a step already ticked off — no nagging for finishing early", () => {
+      expect(hasStepForWeek("m1", [monthly(), step({ status: "done" })], MEETING)).toBe(true);
+    });
+
+    it("does not count a dropped step", () => {
+      expect(hasStepForWeek("m1", [monthly(), step({ status: "dropped" })], MEETING)).toBe(false);
+    });
+
+    it("does not count another monthly priority's step", () => {
+      expect(hasStepForWeek("m1", [monthly(), step({ parent_id: "somewhere-else" })], MEETING)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("the amber list", () => {
+    it("returns exactly the monthly priorities with no step this week", () => {
+      const list = [
+        monthly({ id: "stepped" }),
+        step({ id: "s", parent_id: "stepped" }),
+        monthly({ id: "bare" }),
+        step({ id: "orphan", parent_id: null }),
+      ];
+      expect(monthlyPrioritiesNeedingStep(list, MEETING).map((p) => p.id)).toEqual(["bare"]);
+    });
+
+    it("leaves closed monthly priorities alone", () => {
+      const list = [monthly({ id: "done", status: "done" })];
+      expect(monthlyPrioritiesNeedingStep(list, MEETING)).toEqual([]);
+    });
+  });
+
+  describe("grouping", () => {
+    it("splits department from individual and nests the steps", () => {
+      const grouped = groupPriorities(
+        [
+          monthly({ id: "dept", scope: "department" }),
+          step({ id: "deptstep", parent_id: "dept" }),
+          monthly({ id: "mine", scope: "individual", text: "Hire a junior designer" }),
+          step({ id: "loose", parent_id: null, scope: "individual" }),
+        ],
+        MEETING,
+      );
+
+      expect(grouped.department.map((g) => g.parent.id)).toEqual(["dept"]);
+      expect(grouped.department[0].steps.map((s) => s.id)).toEqual(["deptstep"]);
+      expect(grouped.department[0].needsStep).toBe(false);
+
+      expect(grouped.individual.map((g) => g.parent.id)).toEqual(["mine"]);
+      expect(grouped.individual[0].needsStep).toBe(true);
+
+      expect(grouped.orphanWeeklies.map((p) => p.id)).toEqual(["loose"]);
+    });
+
+    it("treats a step whose parent is gone as a standalone weekly priority", () => {
+      const grouped = groupPriorities([step({ id: "widowed", parent_id: "deleted" })], MEETING);
+      expect(grouped.orphanWeeklies.map((p) => p.id)).toEqual(["widowed"]);
+    });
+
+    it("keeps quarterly priorities with the monthly ones rather than dropping them", () => {
+      const grouped = groupPriorities(
+        [monthly({ id: "q", horizon: "quarter", scope: "individual" })],
+        MEETING,
+      );
+      expect(grouped.individual.map((g) => g.parent.id)).toEqual(["q"]);
+    });
+  });
+});
+
+describe("the monthly rhythm", () => {
+  it("spots the first Monday of a month", () => {
+    expect(isFirstMondayOfMonth("2026-09-07")).toBe(true); // first Monday, Sept starts Tue
+    expect(isFirstMondayOfMonth("2026-09-14")).toBe(false); // second Monday
+    expect(isFirstMondayOfMonth("2026-06-01")).toBe(true); // month starts on a Monday
+  });
+
+  it("is false for any day that isn't a Monday", () => {
+    expect(isFirstMondayOfMonth("2026-09-01")).toBe(false); // a Tuesday
+  });
+
+  it("finds the last day of the month", () => {
+    expect(endOfMonth("2026-08-10")).toBe("2026-08-31");
+    expect(endOfMonth("2026-09-07")).toBe("2026-09-30");
+    expect(endOfMonth("2026-02-03")).toBe("2026-02-28");
+    expect(endOfMonth("2028-02-07")).toBe("2028-02-29"); // leap year
   });
 });
 

@@ -5,7 +5,16 @@
 // UI has exactly one place to ask "is this red?" rather than deciding for itself.
 
 import { addDays, daysBetween, nextMonday, rolloutWeek } from "./dates";
-import type { Issue, Meeting, Metric, MetricValue, Settings, Todo } from "./types";
+import type {
+  Horizon,
+  Issue,
+  Meeting,
+  Metric,
+  MetricValue,
+  Priority,
+  Settings,
+  Todo,
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // R1 / R2 — blank renders red, target-not-set renders grey
@@ -114,13 +123,132 @@ export function isBeyondTodoHorizon(dueDate: string, from: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Priorities — scope, and monthly broken down to weekly
+//
+// A monthly priority nobody has broken into a weekly step is a wish. The previous format
+// proved it: `Win For The Month` was blank in 34 weeks out of 34, and
+// `Department Goal Progress` lasted four. So an un-stepped monthly priority is rendered
+// visibly incomplete, the same way a blank metric is under R1 — amber rather than red,
+// because this is a nudge like R4 and not a gate like R5.
+// ---------------------------------------------------------------------------
+
+/** A weekly step counts if it lands inside the week the meeting opens. */
+export const STEP_WINDOW_DAYS = 7;
+
+export const NO_STEP_PROMPT = "No step this week. What moves this forward by next Monday?";
+
+export function canParentPriority(parent: Priority, childHorizon: Horizon): Gate {
+  if (parent.horizon !== "month") {
+    return {
+      allowed: false,
+      message: "Only a monthly priority can be broken into weekly steps.",
+    };
+  }
+  if (parent.parent_id !== null) {
+    return {
+      allowed: false,
+      message: "A step can't have its own steps — keep it one level deep.",
+    };
+  }
+  if (childHorizon !== "week") {
+    return { allowed: false, message: "A step toward a monthly priority is a weekly one." };
+  }
+  return { allowed: true, message: "" };
+}
+
+/** The weekly steps hanging off a monthly priority, dropped ones excluded. */
+export function stepsFor(parentId: string, priorities: Priority[]): Priority[] {
+  return priorities
+    .filter((p) => p.parent_id === parentId && p.status !== "dropped")
+    .sort((a, b) => a.due_date.localeCompare(b.due_date) || a.created_at.localeCompare(b.created_at));
+}
+
+/**
+ * Does this monthly priority have a step landing in the coming week? A date range rather
+ * than an exact match, so hand-editing a due date by a day doesn't silently void the step.
+ * A step already done still counts — nobody should be nagged for finishing early.
+ */
+export function hasStepForWeek(
+  parentId: string,
+  priorities: Priority[],
+  meetingDate: string,
+): boolean {
+  const windowEnd = addDays(meetingDate, STEP_WINDOW_DAYS);
+  return stepsFor(parentId, priorities).some(
+    (s) => s.due_date > meetingDate && s.due_date <= windowEnd,
+  );
+}
+
+export function monthlyPrioritiesNeedingStep(
+  priorities: Priority[],
+  meetingDate: string,
+): Priority[] {
+  return priorities.filter(
+    (p) =>
+      p.horizon === "month" &&
+      p.status === "open" &&
+      !hasStepForWeek(p.id, priorities, meetingDate),
+  );
+}
+
+export interface PriorityGroup {
+  parent: Priority;
+  steps: Priority[];
+  needsStep: boolean;
+}
+
+export interface GroupedPriorities {
+  department: PriorityGroup[];
+  individual: PriorityGroup[];
+  /** Weekly priorities declared on their own, with no monthly priority above them. */
+  orphanWeeklies: Priority[];
+}
+
+/**
+ * The one grouping function. The prep screen, the meeting runner and the markdown export
+ * all call it, so a priority can never appear under one heading in the meeting and a
+ * different one in the export.
+ */
+export function groupPriorities(priorities: Priority[], meetingDate: string): GroupedPriorities {
+  const byCreated = (a: Priority, b: Priority) => a.created_at.localeCompare(b.created_at);
+
+  const monthly = priorities
+    .filter((p) => p.horizon !== "week" && p.status === "open")
+    .sort(byCreated);
+
+  const toGroup = (parent: Priority): PriorityGroup => ({
+    parent,
+    steps: stepsFor(parent.id, priorities),
+    needsStep: !hasStepForWeek(parent.id, priorities, meetingDate),
+  });
+
+  const parentIds = new Set(monthly.map((p) => p.id));
+
+  return {
+    department: monthly.filter((p) => p.scope === "department").map(toGroup),
+    individual: monthly.filter((p) => p.scope !== "department").map(toGroup),
+    orphanWeeklies: priorities
+      .filter(
+        (p) =>
+          p.horizon === "week" &&
+          p.status === "open" &&
+          (p.parent_id === null || !parentIds.has(p.parent_id)),
+      )
+      .sort(byCreated),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // R5 — an issue cannot be solved without a to-do
 // ---------------------------------------------------------------------------
 
-export interface SolveGate {
+/** A yes/no with a reason attached. Nothing in this app disables silently. */
+export interface Gate {
   allowed: boolean;
   message: string;
 }
+
+export type SolveGate = Gate;
 
 /** The only hard gate in the app. Returns an explanation, never a silent disable. */
 export function canSolveIssue(linkedTodos: Todo[]): SolveGate {

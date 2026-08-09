@@ -12,6 +12,7 @@ create type user_role       as enum ('facilitator', 'manager', 'contributor');
 create type metric_direction as enum ('gte', 'lte', 'yesno');
 create type metric_auto_calc as enum ('todo_completion');
 create type horizon         as enum ('week', 'month', 'quarter');
+create type priority_scope  as enum ('department', 'individual');
 create type item_status     as enum ('open', 'done', 'dropped');
 create type todo_source     as enum ('ids', 'declared', 'manual');
 create type issue_status    as enum ('open', 'solved', 'dropped');
@@ -84,8 +85,23 @@ create table priorities (
   horizon    horizon not null,
   due_date   date not null,
   status     item_status not null default 'open',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Whose goal this is. The department itself comes from the owner's users.department,
+  -- so there is no second place for it to disagree.
+  scope      priority_scope not null default 'individual',
+  -- The monthly priority this is a weekly step toward. One level only: a weekly priority
+  -- never parents anything. Enforced in the action layer, where the message can explain
+  -- itself rather than surfacing as a constraint violation.
+  parent_id  uuid references priorities(id) on delete set null
 );
+
+-- On a database created before priorities carried scope and parent_id, the two columns
+-- above arrive as:
+--   alter table priorities
+--     add column scope     priority_scope not null default 'individual',
+--     add column parent_id uuid references priorities(id) on delete set null;
+
+create index priorities_parent_idx on priorities (parent_id);
 
 create table priority_checks (
   priority_id uuid not null references priorities(id) on delete cascade,

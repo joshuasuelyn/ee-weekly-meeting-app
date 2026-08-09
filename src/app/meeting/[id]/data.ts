@@ -4,8 +4,8 @@
 
 import { renderDefinition } from "@/lib/db/seed-data";
 import type { MeetingContext } from "@/lib/queries";
-import { carryLevel, weeksOpen, type CarryLevel, type MetricState } from "@/lib/rules";
-import type { Meeting, User } from "@/lib/types";
+import { carryLevel, hasStepForWeek, weeksOpen, type CarryLevel, type MetricState } from "@/lib/rules";
+import type { Meeting, PriorityScope, User } from "@/lib/types";
 
 export interface RunnerPerson {
   id: string;
@@ -35,9 +35,15 @@ export interface RunnerPriority {
   text: string;
   ownerId: string;
   ownerName: string;
+  /** The owner's department — how department-scoped priorities are grouped in the runner. */
+  department: string;
   horizon: string;
   dueDate: string;
   onTrack: boolean | null;
+  scope: PriorityScope;
+  parentId: string | null;
+  /** True for a monthly priority with nothing moving it this week. */
+  needsStep: boolean;
 }
 
 export interface RunnerTodo {
@@ -177,9 +183,14 @@ export function buildRunnerData(
       text: p.text,
       ownerId: p.owner_id,
       ownerName: name(p.owner_id),
+      department: ctx.usersById.get(p.owner_id)?.department ?? "Unassigned",
       horizon: p.horizon,
       dueDate: p.due_date,
       onTrack: ctx.priorityChecks.get(p.id) ?? null,
+      scope: p.scope,
+      parentId: p.parent_id,
+      needsStep:
+        p.horizon !== "week" && !hasStepForWeek(p.id, ctx.priorities, ctx.meeting.date),
     })),
     reviewTodos: ctx.reviewTodos.map(mapTodo),
     newTodos: ctx.todos.filter((t) => t.created_meeting_id === ctx.meeting.id).map(mapTodo),

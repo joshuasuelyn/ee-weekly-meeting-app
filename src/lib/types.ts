@@ -3,6 +3,8 @@
 export type Role = "facilitator" | "manager" | "contributor";
 export type Direction = "gte" | "lte" | "yesno";
 export type Horizon = "week" | "month" | "quarter";
+/** Whose goal this is. The department itself is the owner's `users.department`. */
+export type PriorityScope = "department" | "individual";
 export type ItemStatus = "open" | "done" | "dropped";
 export type TodoSource = "ids" | "declared" | "manual";
 export type IssueStatus = "open" | "solved" | "dropped";
@@ -54,6 +56,13 @@ export interface Priority {
   due_date: string;
   status: ItemStatus;
   created_at: string;
+  /** Set on monthly priorities; weekly children inherit it from their parent. */
+  scope: PriorityScope;
+  /**
+   * The monthly priority this is a weekly step toward. One level only — a weekly
+   * priority never parents anything, so there are no trees to walk.
+   */
+  parent_id: string | null;
 }
 
 export interface PriorityCheck {

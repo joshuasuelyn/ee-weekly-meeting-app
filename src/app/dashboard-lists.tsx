@@ -95,37 +95,57 @@ export function PriorityList({ priorities }: { priorities: RunnerPriority[] }) {
 
   if (priorities.length === 0) return <Empty>No open priorities.</Empty>;
 
+  // Monthly priorities carry their weekly steps directly beneath them, same nesting as the
+  // prep screen and the runner.
+  const parentIds = new Set(priorities.filter((p) => p.horizon !== "week").map((p) => p.id));
+  const top = priorities.filter((p) => !p.parentId || !parentIds.has(p.parentId));
+
+  const row = (p: RunnerPriority, indent: boolean) => (
+    <li
+      key={p.id}
+      className={`flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0 ${
+        indent ? "pl-4 ml-1 border-l-2 border-l-(--color-line)" : ""
+      }`}
+    >
+      <span
+        className={`pill shrink-0 ${
+          p.onTrack === true
+            ? "bg-(--color-on-bg) text-(--color-on)"
+            : p.onTrack === false
+              ? "bg-(--color-off-bg) text-(--color-off)"
+              : "bg-(--color-grey-bg) text-(--color-muted)"
+        }`}
+      >
+        {p.onTrack === true ? "on" : p.onTrack === false ? "off" : "unreviewed"}
+      </span>
+      {p.scope === "department" && !indent ? (
+        <span className="pill shrink-0 bg-(--color-grey-bg) text-(--color-muted)">
+          {p.department}
+        </span>
+      ) : null}
+      <span className="flex-1 min-w-[12rem]">{p.text}</span>
+      {p.needsStep ? (
+        <span className="pill shrink-0 bg-(--color-amber-bg) text-(--color-amber)">no step</span>
+      ) : null}
+      <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
+        {p.ownerName} · {formatShortDate(p.dueDate)}
+      </span>
+      <button
+        type="button"
+        onClick={() => startTransition(() => void setPriorityStatus(p.id, "done"))}
+        className="text-[0.85rem] text-(--color-muted) underline underline-offset-2"
+      >
+        Close
+      </button>
+    </li>
+  );
+
   return (
     <ul>
-      {priorities.map((p) => (
-        <li
-          key={p.id}
-          className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0"
-        >
-          <span
-            className={`pill shrink-0 ${
-              p.onTrack === true
-                ? "bg-(--color-on-bg) text-(--color-on)"
-                : p.onTrack === false
-                  ? "bg-(--color-off-bg) text-(--color-off)"
-                  : "bg-(--color-grey-bg) text-(--color-muted)"
-            }`}
-          >
-            {p.onTrack === true ? "on" : p.onTrack === false ? "off" : "unreviewed"}
-          </span>
-          <span className="flex-1 min-w-[12rem]">{p.text}</span>
-          <span className="text-[0.85rem] text-(--color-muted) capitalize whitespace-nowrap">
-            {p.ownerName} · {p.horizon}ly · {formatShortDate(p.dueDate)}
-          </span>
-          <button
-            type="button"
-            onClick={() => startTransition(() => void setPriorityStatus(p.id, "done"))}
-            className="text-[0.85rem] text-(--color-muted) underline underline-offset-2"
-          >
-            Close
-          </button>
-        </li>
-      ))}
+      {top.flatMap((p) => [
+        row(p, false),
+        ...priorities.filter((s) => s.parentId === p.id).map((s) => row(s, true)),
+      ])}
     </ul>
   );
 }

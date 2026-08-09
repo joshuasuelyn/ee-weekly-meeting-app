@@ -44,6 +44,20 @@ export function rolloutWeek(meetingDate: string, rolloutStart: string): number {
 }
 
 /**
+ * True for a Monday in the first seven days of its month — the week the prep screen asks
+ * for this month's priorities. Every other week it stays out of the way.
+ */
+export function isFirstMondayOfMonth(date: string): boolean {
+  return mondayOf(date) === date && parseDate(date).getUTCDate() <= 7;
+}
+
+/** Last calendar day of the month containing `date` — where a monthly priority is due. */
+export function endOfMonth(date: string): string {
+  const d = parseDate(date);
+  return toDateString(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)));
+}
+
+/**
  * Which Monday the app should be pointing at. Today if today is Monday, otherwise the
  * Monday coming — and always strictly after the most recent meeting, so closing a meeting
  * on Monday morning rolls the team forward instead of leaving them on a read-only record.

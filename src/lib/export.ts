@@ -4,7 +4,7 @@
 import { renderDefinition } from "./db/seed-data";
 import { formatDate } from "./dates";
 import type { MeetingContext } from "./queries";
-import { COMPLETION_TARGET } from "./rules";
+import { COMPLETION_TARGET, groupPriorities } from "./rules";
 
 export function meetingToMarkdown(ctx: MeetingContext): string {
   const name = (id: string) => ctx.usersById.get(id)?.name ?? "Unassigned";
@@ -56,16 +56,46 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
   lines.push(`${reds} line${reds === 1 ? "" : "s"} off track.`);
   lines.push("");
 
-  // 3 · Priorities
+  // 3 · Priorities — same grouping as the prep screen and the runner, via groupPriorities.
   lines.push("## Priorities");
   lines.push("");
   if (ctx.openPriorities.length === 0) lines.push("_None open._");
-  for (const p of ctx.openPriorities) {
-    const check = ctx.priorityChecks.get(p.id);
-    const mark = check === true ? "on track" : check === false ? "**off track**" : "not reviewed";
-    lines.push(`- ${p.text} — ${name(p.owner_id)}, ${p.horizon}ly, due ${p.due_date} — ${mark}`);
+
+  const mark = (id: string) => {
+    const check = ctx.priorityChecks.get(id);
+    return check === true ? "on track" : check === false ? "**off track**" : "not reviewed";
+  };
+  const grouped = groupPriorities(ctx.openPriorities, ctx.meeting.date);
+
+  const writeGroups = (heading: string, groups: typeof grouped.department) => {
+    if (groups.length === 0) return;
+    lines.push(`### ${heading}`);
+    lines.push("");
+    for (const g of groups) {
+      const dept = ctx.usersById.get(g.parent.owner_id)?.department;
+      lines.push(
+        `- **${g.parent.text}** — ${name(g.parent.owner_id)}${heading === "Department" ? ` (${dept})` : ""}, ` +
+          `due ${g.parent.due_date} — ${mark(g.parent.id)}` +
+          (g.needsStep ? " · _no step this week_" : ""),
+      );
+      for (const s of g.steps) {
+        lines.push(`  - ${s.text} — ${name(s.owner_id)}, due ${s.due_date} — ${mark(s.id)}`);
+      }
+    }
+    lines.push("");
+  };
+
+  writeGroups("Department", grouped.department);
+  writeGroups("Individual", grouped.individual);
+
+  if (grouped.orphanWeeklies.length > 0) {
+    lines.push("### This week only");
+    lines.push("");
+    for (const p of grouped.orphanWeeklies) {
+      lines.push(`- ${p.text} — ${name(p.owner_id)}, due ${p.due_date} — ${mark(p.id)}`);
+    }
+    lines.push("");
   }
-  lines.push("");
 
   // 4 · Headlines
   lines.push("## Headlines");

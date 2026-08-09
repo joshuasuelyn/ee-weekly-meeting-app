@@ -6,6 +6,7 @@ import { getStore } from "@/lib/db";
 import { today } from "@/lib/queries";
 import {
   assertSingleOwner,
+  canParentPriority,
   canSolveIssue,
   completionFor,
   issueTextForMetric,
@@ -16,7 +17,7 @@ import {
   splitBrainDump,
   todoDueDateFor,
 } from "@/lib/rules";
-import type { Horizon, IssueSource, ItemStatus, TodoSource } from "@/lib/types";
+import type { Horizon, IssueSource, ItemStatus, PriorityScope, TodoSource } from "@/lib/types";
 
 function refresh() {
   revalidatePath("/", "layout");
@@ -94,11 +95,29 @@ export async function createPriority(formData: FormData) {
   const text = String(formData.get("text") ?? "").trim();
   if (!text) return;
 
+  const horizon = (String(formData.get("horizon") ?? "week") as Horizon) ?? "week";
+  const parentId = String(formData.get("parent_id") ?? "") || null;
+  let scope = (String(formData.get("scope") ?? "individual") as PriorityScope) ?? "individual";
+
+  if (parentId) {
+    const parent = (await store.listPriorities()).find((p) => p.id === parentId);
+    if (!parent) throw new Error("That monthly priority no longer exists.");
+
+    const gate = canParentPriority(parent, horizon);
+    if (!gate.allowed) throw new Error(gate.message);
+
+    // A step belongs to whatever its monthly priority belongs to — a weekly step toward a
+    // department goal is department work, whoever happens to be doing it.
+    scope = parent.scope;
+  }
+
   await store.createPriority({
     text,
     owner_id: assertSingleOwner(String(formData.get("owner_id") ?? "")),
-    horizon: (String(formData.get("horizon") ?? "week") as Horizon) ?? "week",
+    horizon,
     due_date: String(formData.get("due_date") ?? todoDueDateFor(today())),
+    scope,
+    parent_id: parentId,
   });
   refresh();
 }
@@ -237,6 +256,8 @@ export async function createPriorityInsteadOfTodo(formData: FormData) {
     owner_id: assertSingleOwner(String(formData.get("owner_id") ?? "")),
     horizon: "month",
     due_date: String(formData.get("due_date") ?? todoDueDateFor(today())),
+    scope: "individual",
+    parent_id: null,
   });
   refresh();
 }

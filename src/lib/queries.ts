@@ -2,12 +2,20 @@
 // "what is the current meeting" and "what carries forward" have one answer each.
 
 import { getStore } from "./db";
-import { mondayOf, nextMeetingDate, nextMonday, toDateString } from "./dates";
+import {
+  endOfMonth,
+  isFirstMondayOfMonth,
+  mondayOf,
+  nextMeetingDate,
+  nextMonday,
+  toDateString,
+} from "./dates";
 import {
   buildScorecard,
   completionFor,
   computeCarryForward,
   currentWeekFor,
+  groupPriorities,
   liveMetrics,
   sortIssues,
   staleIssues,
@@ -187,6 +195,8 @@ export async function loadPrep(user: User) {
 
   const week = currentWeekFor(meeting.date, settings);
   const mine = liveMetrics(metrics, week).filter((m) => m.owner_id === user.id && !m.auto_calc);
+  const myPriorities = priorities.filter((p) => p.owner_id === user.id && p.status === "open");
+  const monthlies = myPriorities.filter((p) => p.horizon !== "week");
 
   return {
     meeting,
@@ -197,10 +207,23 @@ export async function loadPrep(user: User) {
       value: values.find((v) => v.metric_id === metric.id)?.value ?? "",
       lastValue: previousValues.find((v) => v.metric_id === metric.id)?.value ?? null,
     })),
-    myPriorities: priorities.filter((p) => p.owner_id === user.id && p.status === "open"),
-    checks: new Map(
+    myPriorities,
+    grouped: groupPriorities(myPriorities, meeting.date),
+    /**
+     * Whether the month's setup block should *press*. True on the first Monday of a month,
+     * and in any week where this person has no monthly priority at all or one has run past
+     * its date. When false the block is still offered for any empty slot, just quietly — a
+     * card that nags every week is a card people learn to scroll past.
+     */
+    needsMonthlySetup:
+      isFirstMondayOfMonth(meeting.date) ||
+      monthlies.length === 0 ||
+      monthlies.some((p) => p.due_date < meeting.date),
+    monthDueDate: endOfMonth(meeting.date),
+    // A plain object rather than a Map: this crosses into a client component.
+    checks: Object.fromEntries(
       (await store.listPriorityChecks(meeting.id)).map((c) => [c.priority_id, c.on_track]),
-    ),
+    ) as Record<string, boolean | null>,
     submitted: submissions.some((s) => s.user_id === user.id),
   };
 }

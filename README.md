@@ -59,6 +59,32 @@ decides for itself.
 | R11 brain dump splitting | `splitBrainDump` — each non-empty line becomes its own issue, bullets and numbering stripped |
 | R12 nothing retyped | Open to-dos, issues and priorities carry forward by query, never by re-entry |
 
+## Priorities: scope and breakdown
+
+A priority carries two axes. `scope` is `department` or `individual`; `horizon` is
+`month` or `week`. `parent_id` links a weekly step to the monthly priority it moves
+forward — one level deep, enforced by `canParentPriority`. A step inherits its parent's
+scope, and a department priority's department comes from the owner's `users.department`,
+so there is no second place for either to disagree.
+
+The forcing function is `monthlyPrioritiesNeedingStep`: a monthly priority with nothing
+due in the coming week renders **amber** with *"No step this week"* and an inline box to
+add one. It never blocks submitting — it's a nudge in the same weight class as R4, not a
+gate like R5. This exists because the previous format's `Win For The Month` was blank in
+34 weeks out of 34 and `Department Goal Progress` lasted four: a monthly goal nobody
+breaks down is a wish, and the app makes that visible rather than letting it sit quietly.
+
+The **Set this month** block on the prep screen appears on the first Monday of a month,
+and in any week where a manager has no monthly priority at all or one has run past its
+date. The other three weeks of the month it stays away, so the priorities block costs
+about thirty seconds. `groupPriorities` is the single grouping function — prep, the
+runner and the markdown export all call it, so nothing appears under one heading in the
+meeting and a different one in the export.
+
+Department priorities appear only on their owner's prep screen (§6.1 — no other people's
+data on the five-minute screen). The whole board is visible to everyone in the meeting
+runner and on the dashboard.
+
 ## What is and isn't here
 
 **Phase 1**, per §8: scorecard lines 1, 2, 3 and 6 live in week 1, weekly and monthly

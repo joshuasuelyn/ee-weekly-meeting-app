@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { SaveDot, useAutosave } from "@/components/autosave";
 import { Card, SectionTitle } from "@/components/ui";
 import { addIssues, setMetricValue, setPriorityCheck, submitPrep } from "@/app/actions";
-import { splitBrainDump } from "@/lib/rules";
+import { createPriority } from "@/app/actions";
+import { nextMonday } from "@/lib/dates";
+import { NO_STEP_PROMPT, splitBrainDump, type GroupedPriorities, type PriorityGroup } from "@/lib/rules";
 import type { Metric, Priority } from "@/lib/types";
 
 export interface PrepMetric {
@@ -13,6 +15,10 @@ export interface PrepMetric {
   lastValue: string | null;
   definition: string;
 }
+
+// ---------------------------------------------------------------------------
+// My numbers
+// ---------------------------------------------------------------------------
 
 function MetricInput({ meetingId, row }: { meetingId: string; row: PrepMetric }) {
   const { value, update, state } = useAutosave(row.value, (v) =>
@@ -67,14 +73,20 @@ function MetricInput({ meetingId, row }: { meetingId: string; row: PrepMetric })
   );
 }
 
+// ---------------------------------------------------------------------------
+// Priorities
+// ---------------------------------------------------------------------------
+
 function PriorityRow({
   meetingId,
   priority,
   initial,
+  indent = false,
 }: {
   meetingId: string;
   priority: Priority;
   initial: boolean | null;
+  indent?: boolean;
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
   const [, startTransition] = useTransition();
@@ -85,18 +97,22 @@ function PriorityRow({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 py-3 border-b border-(--color-line) last:border-0">
-      <div className="flex-1 min-w-[14rem]">
-        <p className="font-medium">{priority.text}</p>
-        <p className="text-[0.85rem] text-(--color-muted) capitalize">
-          {priority.horizon}ly · due {priority.due_date}
+    <div
+      className={`flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0 ${
+        indent ? "pl-4 border-l-2 border-l-(--color-line) ml-1" : ""
+      }`}
+    >
+      <div className="flex-1 min-w-[13rem]">
+        <p className={indent ? "text-[0.95rem]" : "font-medium"}>{priority.text}</p>
+        <p className="text-[0.82rem] text-(--color-muted)">
+          {indent ? "step · due" : "this month · due"} {priority.due_date}
         </p>
       </div>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => choose(true)}
-          className={`px-4 py-2 rounded-xl border font-medium ${
+          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
             onTrack === true
               ? "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
               : "border-(--color-line) hover:bg-(--color-grey-bg)"
@@ -107,7 +123,7 @@ function PriorityRow({
         <button
           type="button"
           onClick={() => choose(false)}
-          className={`px-4 py-2 rounded-xl border font-medium ${
+          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
             onTrack === false
               ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
               : "border-(--color-line) hover:bg-(--color-grey-bg)"
@@ -119,6 +135,172 @@ function PriorityRow({
     </div>
   );
 }
+
+/**
+ * The amber nudge under a monthly priority with nothing moving it this week. A prompt, not
+ * a gate — the same weight as R4's "that's not a to-do, it's a priority".
+ */
+function StepAdder({
+  ownerId,
+  parentId,
+  meetingDate,
+}: {
+  ownerId: string;
+  parentId: string;
+  meetingDate: string;
+}) {
+  const [text, setText] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <form
+      action={(fd) =>
+        startTransition(async () => {
+          await createPriority(fd);
+          setText("");
+        })
+      }
+      className="ml-1 pl-4 border-l-2 border-l-(--color-amber) py-3"
+    >
+      <input type="hidden" name="owner_id" value={ownerId} />
+      <input type="hidden" name="parent_id" value={parentId} />
+      <input type="hidden" name="horizon" value="week" />
+      <input type="hidden" name="due_date" value={nextMonday(meetingDate)} />
+
+      <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{NO_STEP_PROMPT}</p>
+      <div className="flex flex-wrap gap-2">
+        <input
+          name="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Rebuild the top 3 ad creatives"
+          aria-label="This week's step"
+          className="flex-1 min-w-[14rem] px-3 py-2 rounded-xl border border-(--color-line)"
+        />
+        <button
+          type="submit"
+          disabled={text.trim() === "" || pending}
+          className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-40"
+        >
+          Add step
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PriorityGroupBlock({
+  group,
+  meetingId,
+  meetingDate,
+  ownerId,
+  checks,
+}: {
+  group: PriorityGroup;
+  meetingId: string;
+  meetingDate: string;
+  ownerId: string;
+  checks: Record<string, boolean | null>;
+}) {
+  return (
+    <div className="mb-4 last:mb-0">
+      <PriorityRow
+        meetingId={meetingId}
+        priority={group.parent}
+        initial={checks[group.parent.id] ?? null}
+      />
+      {group.steps.map((s) => (
+        <PriorityRow
+          key={s.id}
+          meetingId={meetingId}
+          priority={s}
+          initial={checks[s.id] ?? null}
+          indent
+        />
+      ))}
+      {group.needsStep ? (
+        <StepAdder ownerId={ownerId} parentId={group.parent.id} meetingDate={meetingDate} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Creation only — On/Off review lives in the block below, so no control appears twice.
+ *
+ * Rendered whenever a slot is still empty, but only *urgent* (amber, prompting copy) when
+ * the month genuinely needs setting up. The rest of the time it's a quiet affordance, so
+ * filling one slot never hides the other half-way through the job.
+ */
+function MonthlySetup({
+  ownerId,
+  department,
+  monthDueDate,
+  hasDepartment,
+  hasIndividual,
+  urgent,
+}: {
+  ownerId: string;
+  department: string;
+  monthDueDate: string;
+  hasDepartment: boolean;
+  hasIndividual: boolean;
+  urgent: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  const slot = (scope: "department" | "individual", label: string, placeholder: string) => (
+    <form
+      action={(fd) => startTransition(async () => void (await createPriority(fd)))}
+      className="py-3 border-b border-(--color-line) last:border-0"
+    >
+      <input type="hidden" name="owner_id" value={ownerId} />
+      <input type="hidden" name="horizon" value="month" />
+      <input type="hidden" name="scope" value={scope} />
+      <input type="hidden" name="due_date" value={monthDueDate} />
+
+      <label className="text-[0.9rem] font-medium block mb-1.5">{label}</label>
+      <div className="flex flex-wrap gap-2">
+        <input
+          name="text"
+          required
+          placeholder={placeholder}
+          className="flex-1 min-w-[15rem] px-3 py-2 rounded-xl border border-(--color-line)"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="px-4 py-2 rounded-xl border border-(--color-line) font-medium hover:bg-(--color-grey-bg) disabled:opacity-40"
+        >
+          Set
+        </button>
+      </div>
+    </form>
+  );
+
+  if (hasDepartment && hasIndividual) return null;
+
+  return (
+    <Card className={`p-5 ${urgent ? "border-(--color-amber)" : ""}`}>
+      <SectionTitle
+        title={urgent ? "Set this month" : "Add a monthly priority"}
+        hint={
+          urgent
+            ? `Due ${monthDueDate}. One month, then it's reviewed. You'll break it into weekly steps below.`
+            : `Optional. Due ${monthDueDate} if you add one.`
+        }
+      />
+      {hasDepartment
+        ? null
+        : slot("department", `${department} — this month`, "Get cost per lead under RM12")}
+      {hasIndividual ? null : slot("individual", "Mine — this month", "Hire a junior designer")}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Issues
+// ---------------------------------------------------------------------------
 
 function IssueDump({ meetingDate }: { meetingDate: string }) {
   const [text, setText] = useState("");
@@ -157,9 +339,7 @@ function IssueDump({ meetingDate }: { meetingDate: string }) {
           disabled={count === 0 || pending}
           className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-40"
         >
-          {count === 0
-            ? "Add issues"
-            : `Add ${count} issue${count > 1 ? "s" : ""}`}
+          {count === 0 ? "Add issues" : `Add ${count} issue${count > 1 ? "s" : ""}`}
         </button>
         {added ? (
           <span className="text-[0.9rem] text-(--color-on)">
@@ -175,26 +355,40 @@ function IssueDump({ meetingDate }: { meetingDate: string }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+
 export function PrepForm({
   meetingId,
   meetingDate,
+  ownerId,
+  department,
   metrics,
-  priorities,
+  grouped,
   checks,
+  needsMonthlySetup,
+  monthDueDate,
   submitted,
 }: {
   meetingId: string;
   meetingDate: string;
+  ownerId: string;
+  department: string;
   metrics: PrepMetric[];
-  priorities: { priority: Priority; onTrack: boolean | null }[];
-  checks: number;
+  grouped: GroupedPriorities;
+  checks: Record<string, boolean | null>;
+  needsMonthlySetup: boolean;
+  monthDueDate: string;
   submitted: boolean;
 }) {
   const [isSubmitted, setSubmitted] = useState(submitted);
   const [, startTransition] = useTransition();
 
   const blanks = metrics.filter((m) => m.value.trim() === "").length;
-  const unchecked = priorities.filter((p) => p.onTrack === null).length;
+  const allGroups = [...grouped.department, ...grouped.individual];
+  const unstepped = allGroups.filter((g) => g.needsStep).length;
+  const nothingAtAll = allGroups.length === 0 && grouped.orphanWeeklies.length === 0;
+
+  const groupProps = { meetingId, meetingDate, ownerId, checks };
 
   return (
     <div className="grid gap-6">
@@ -221,32 +415,72 @@ export function PrepForm({
         ))}
       </Card>
 
+      <MonthlySetup
+        ownerId={ownerId}
+        department={department}
+        monthDueDate={monthDueDate}
+        hasDepartment={grouped.department.length > 0}
+        hasIndividual={grouped.individual.length > 0}
+        urgent={needsMonthlySetup}
+      />
+
       <Card className="p-5">
         <SectionTitle
           title="My priorities"
           hint="On or off. Off-track drops into Issues at the meeting — no explanation needed here."
           right={
-            unchecked > 0 ? (
+            unstepped > 0 ? (
               <span className="pill bg-(--color-amber-bg) text-(--color-amber)">
-                {unchecked} unreviewed
+                {unstepped} with no step this week
               </span>
             ) : null
           }
         />
-        {priorities.length === 0 ? (
+
+        {nothingAtAll ? (
           <p className="text-(--color-muted) py-2">
-            None yet. Declare one below and it carries itself from here on.
+            Nothing yet. Set this month&rsquo;s priorities above and they carry themselves from
+            here on.
           </p>
-        ) : (
-          priorities.map(({ priority, onTrack }) => (
-            <PriorityRow
-              key={priority.id}
-              meetingId={meetingId}
-              priority={priority}
-              initial={onTrack}
-            />
-          ))
-        )}
+        ) : null}
+
+        {grouped.department.length > 0 ? (
+          <div className="mb-5">
+            <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
+              {department}
+            </h3>
+            {grouped.department.map((g) => (
+              <PriorityGroupBlock key={g.parent.id} group={g} {...groupProps} />
+            ))}
+          </div>
+        ) : null}
+
+        {grouped.individual.length > 0 ? (
+          <div className="mb-5">
+            <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
+              Mine
+            </h3>
+            {grouped.individual.map((g) => (
+              <PriorityGroupBlock key={g.parent.id} group={g} {...groupProps} />
+            ))}
+          </div>
+        ) : null}
+
+        {grouped.orphanWeeklies.length > 0 ? (
+          <div>
+            <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
+              This week only
+            </h3>
+            {grouped.orphanWeeklies.map((p) => (
+              <PriorityRow
+                key={p.id}
+                meetingId={meetingId}
+                priority={p}
+                initial={checks[p.id] ?? null}
+              />
+            ))}
+          </div>
+        ) : null}
       </Card>
 
       <Card className="p-5">
@@ -275,10 +509,6 @@ export function PrepForm({
           {isSubmitted ? "Ready ✓" : "I'm ready"}
         </button>
       </Card>
-
-      <p className="text-[0.85rem] text-(--color-muted) text-center">
-        {checks} priorit{checks === 1 ? "y" : "ies"} reviewed · everything saves as you type
-      </p>
     </div>
   );
 }

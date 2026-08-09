@@ -29,6 +29,9 @@ export interface NewPriority {
   owner_id: string;
   horizon: Priority["horizon"];
   due_date: string;
+  scope: Priority["scope"];
+  /** The monthly priority this is a weekly step toward, if any. */
+  parent_id: string | null;
 }
 
 export interface NewTodo {
