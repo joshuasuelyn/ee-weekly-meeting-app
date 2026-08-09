@@ -59,6 +59,14 @@ export interface Store {
   listUsers(opts?: { includeInactive?: boolean }): Promise<User[]>;
   getUserById(id: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
+  /**
+   * Is this address an active team member? Asked before sign-in, so it runs with no
+   * session — which is why it cannot be `getUserByEmail() !== null`. Row-level security
+   * hides every users row from an anonymous caller, so that check answers "no" for
+   * everyone, including people who are on the list. Returns a bare boolean so the
+   * anonymous role learns nothing beyond what it already guessed.
+   */
+  isTeamEmail(email: string): Promise<boolean>;
   upsertUser(user: User): Promise<void>;
 
   // --- metrics ------------------------------------------------------------

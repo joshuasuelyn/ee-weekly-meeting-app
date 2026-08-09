@@ -229,4 +229,28 @@ describe("definition of done — three-week cycle on the real store", () => {
       "2026-09-07:—",
     ]);
   });
+
+  // The sign-in gate runs before anyone has a session. On Supabase that means the
+  // anonymous role, which RLS hides every users row from — so this deliberately does not
+  // go through getUserByEmail. Both adapters must agree on the answer.
+  describe("sign-in gate", () => {
+    it("recognises a seeded address", async () => {
+      expect(await store.isTeamEmail("joshua@easyeurope.com.my")).toBe(true);
+    });
+
+    it("ignores case and surrounding whitespace", async () => {
+      expect(await store.isTeamEmail("  JOSHUA@EasyEurope.com.my ")).toBe(true);
+    });
+
+    it("turns away an address that is not on the list", async () => {
+      expect(await store.isTeamEmail("stranger@example.com")).toBe(false);
+    });
+
+    it("turns away a deactivated member", async () => {
+      const may = await store.getUserByEmail("may@easyeurope.com.my");
+      await store.upsertUser({ ...may!, active: false });
+      expect(await store.isTeamEmail("may@easyeurope.com.my")).toBe(false);
+      await store.upsertUser({ ...may!, active: true });
+    });
+  });
 });

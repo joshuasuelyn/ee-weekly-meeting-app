@@ -122,6 +122,10 @@ export const localStore: Store = {
         db.users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim()) ?? null,
       ),
     ),
+  isTeamEmail: (email) =>
+    read((db) =>
+      db.users.some((u) => u.email.toLowerCase() === email.toLowerCase().trim() && u.active),
+    ),
   upsertUser: (user: User) =>
     mutate((db) => {
       const i = db.users.findIndex((u) => u.id === user.id);

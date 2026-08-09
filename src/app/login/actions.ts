@@ -33,9 +33,10 @@ export async function sendMagicLink(
 
   if (!supabaseConfigured()) return { error: "Supabase is not configured on this deployment." };
 
-  // Only people already on the team can sign in — no public access (§2).
-  const known = await getStore().getUserByEmail(email);
-  if (!known || !known.active) {
+  // Only people already on the team can sign in — no public access (§2). This runs with
+  // no session, so it goes through isTeamEmail rather than reading the users table: RLS
+  // hides every row from an anonymous caller and would turn everyone away.
+  if (!(await getStore().isTeamEmail(email))) {
     return { error: "That address isn't on the team list. Ask Joshua to add you in Admin." };
   }
 

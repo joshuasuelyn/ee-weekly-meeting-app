@@ -74,6 +74,14 @@ export const supabaseStore: Store = {
     if (error) throw new Error(`getUserByEmail: ${error.message}`);
     return (data as User) ?? null;
   },
+  async isTeamEmail(email) {
+    const sb = await db();
+    // A security-definer function, not a table read: the caller has no session yet and
+    // RLS hides users from the anonymous role. See supabase/03-signin-lookup.sql.
+    const { data, error } = await sb.rpc("is_team_email", { addr: email.trim() });
+    if (error) throw new Error(`isTeamEmail: ${error.message}`);
+    return data === true;
+  },
   async upsertUser(user: User) {
     const sb = await db();
     const res = await sb.from("users").upsert(user);

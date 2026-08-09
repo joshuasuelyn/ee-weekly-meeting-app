@@ -316,3 +316,21 @@ create policy own_row on ratings for all to authenticated
 create policy own_row on submissions for all to authenticated
   using (is_facilitator() or user_id = app_user_id())
   with check (is_facilitator() or user_id = app_user_id());
+
+-- Sign-in lookup, kept identical to supabase/03-signin-lookup.sql.
+create or replace function public.is_team_email(addr text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.users
+    where lower(email) = lower(trim(addr))
+      and active
+  );
+$$;
+revoke all on function public.is_team_email(text) from public;
+grant execute on function public.is_team_email(text) to anon, authenticated;
