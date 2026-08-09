@@ -6,8 +6,7 @@ insert into users (id, name, email, role, department, active) values
   ('11111111-1111-4111-8111-000000000002', 'May', 'may@easyeurope.com.my', 'manager'::user_role, 'Marketing', true),
   ('11111111-1111-4111-8111-000000000003', 'Esther', 'esther@easyeurope.com.my', 'manager'::user_role, 'Sales', true),
   ('11111111-1111-4111-8111-000000000004', 'Nick', 'nick@easyeurope.com.my', 'manager'::user_role, 'Operations', true),
-  ('11111111-1111-4111-8111-000000000005', 'Sue Lyn', 'suelyn@easyeurope.com.my', 'manager'::user_role, 'Procurement', true),
-  ('11111111-1111-4111-8111-000000000006', 'Angeline', 'angeline@easyeurope.com.my', 'contributor'::user_role, 'Operations', false)
+  ('11111111-1111-4111-8111-000000000005', 'Sue Lyn', 'suelyn@easyeurope.com.my', 'manager'::user_role, 'Procurement', true)
 on conflict (id) do update set
   name = excluded.name,
   email = excluded.email,

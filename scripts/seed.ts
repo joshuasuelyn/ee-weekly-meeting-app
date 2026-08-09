@@ -66,6 +66,9 @@ async function main() {
   await writeFile(sqlPath, buildSql(), "utf8");
   console.log(`Wrote ${sqlPath}`);
 
+  // --sql-only regenerates the migration without throwing away local dev data.
+  if (process.argv.includes("--sql-only")) return;
+
   await resetLocalStore();
   console.log(
     `Reset local dev database: ${SEED_USERS.length} users, ${SEED_METRICS.length} metrics, ` +

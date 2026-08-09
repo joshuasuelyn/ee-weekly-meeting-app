@@ -12,7 +12,6 @@ export const USER_IDS = {
   esther: u(3),
   nick: u(4),
   sueLyn: u(5),
-  angeline: u(6),
 } as const;
 
 /**
@@ -60,15 +59,7 @@ export const SEED_USERS: User[] = [
     department: "Procurement",
     active: true,
   },
-  // Phase 3. Seeded inactive so phase 1 is exactly the five managers.
-  {
-    id: USER_IDS.angeline,
-    name: "Angeline",
-    email: "angeline@easyeurope.com.my",
-    role: "contributor",
-    department: "Operations",
-    active: false,
-  },
+  // Contributors are added in Admin → People when phase 3 needs them.
 ];
 
 /** Placeholder for X in line 6's definition until the managers agree it (§10 decision 1). */

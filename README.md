@@ -68,7 +68,8 @@ definitions are seeded — `live_from_week` and the rollout date in Admin reveal
 
 Not built, by agreement: the completion-% trend chart (phase 2), the departure readiness
 board and `Departure` / `ReadinessCheck` tables (phase 3), quarterly planning (phase 4).
-Angeline is seeded inactive until phase 3.
+The seed is the five managers only; contributors get added in Admin → People when phase 3
+needs them.
 
 Out of scope per §9 and untouched: Google Sheet integration, Notion sync, native mobile,
 automated data pulls, booking-curve modelling.
@@ -93,7 +94,8 @@ These surface in Admin → *Decisions still open* rather than sitting in a docum
 - **Target for line 2**, 2027 signups per week (§10.2). Renders grey, not red, meanwhile.
 
 The remaining §10 decisions — Esther's approval authority, the written threshold for a
-critical issue, whether Angeline attends, and Esther's possible move to Operations — do
+critical issue, who carries the tour-manager readiness tick, and Esther's possible move to
+Operations — do
 not block phase 1.
 
 ## Architecture notes

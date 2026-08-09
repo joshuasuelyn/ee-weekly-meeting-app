@@ -225,7 +225,7 @@ export default async function AdminPage() {
           ))}
         </div>
         <p className="text-[0.85rem] text-(--color-muted) mt-3">
-          Roles are fixed in the seed. Angeline is seeded inactive — activate her in phase 3.
+          Roles are fixed in the seed. Contributors get added here when phase 3 needs them.
         </p>
       </Card>
 

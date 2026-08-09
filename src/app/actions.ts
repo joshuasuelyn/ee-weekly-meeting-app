@@ -361,8 +361,12 @@ export async function saveMetric(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const rawTarget = String(formData.get("target") ?? "").trim();
 
+  // A nameless scorecard line is unreadable on Monday. Refuse rather than persist it.
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("A scorecard line needs a name.");
+
   await getStore().updateMetric(id, {
-    name: String(formData.get("name") ?? "").trim(),
+    name,
     owner_id: assertSingleOwner(String(formData.get("owner_id") ?? "")),
     target: rawTarget === "" ? null : Number(rawTarget),
     unit: String(formData.get("unit") ?? ""),
@@ -390,10 +394,17 @@ export async function saveUser(formData: FormData) {
   const existing = await store.getUserById(id);
   if (!existing) throw new Error("Unknown user");
 
+  // Name and email are identity: the name labels every owner field in the app and the
+  // email is the sign-in credential. Neither may be emptied.
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  if (!name) throw new Error("A person needs a name — it labels every owner field.");
+  if (!email) throw new Error("A person needs an email — it's how they sign in.");
+
   await store.upsertUser({
     ...existing,
-    name: String(formData.get("name") ?? existing.name).trim(),
-    email: String(formData.get("email") ?? existing.email).trim(),
+    name,
+    email,
     department: String(formData.get("department") ?? existing.department).trim(),
     active: formData.get("active") === "on",
   });
