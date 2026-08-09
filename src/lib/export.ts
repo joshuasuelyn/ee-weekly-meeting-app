@@ -5,6 +5,7 @@ import { renderDefinition } from "./db/seed-data";
 import { formatDate } from "./dates";
 import type { MeetingContext } from "./queries";
 import { COMPLETION_TARGET, groupPriorities } from "./rules";
+import { segueQuestionFor } from "./segue";
 
 export function meetingToMarkdown(ctx: MeetingContext): string {
   const name = (id: string) => ctx.usersById.get(id)?.name ?? "Unassigned";
@@ -20,6 +21,10 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
 
   // 1 · Segue
   lines.push("## Segue");
+  lines.push("");
+  // The question travels with the answers, or a page of one-liners about food reads as
+  // a non-sequitur six months later.
+  lines.push(`_${segueQuestionFor(ctx.meeting.date)}_`);
   lines.push("");
   if (ctx.segues.length === 0) lines.push("_Not recorded._");
   for (const s of ctx.segues) {

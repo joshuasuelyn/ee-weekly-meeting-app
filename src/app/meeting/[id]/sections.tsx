@@ -24,6 +24,7 @@ import {
   toggleIssuePick,
 } from "@/app/actions";
 import { COMPLETION_TARGET, MAX_ISSUES_PER_MEETING, splitBrainDump } from "@/lib/rules";
+import { segueQuestionFor } from "@/lib/segue";
 import { formatShortDate } from "@/lib/dates";
 import type {
   RunnerData,
@@ -61,8 +62,8 @@ function SegueRow({
       <input
         value={value.personal}
         onChange={(e) => update({ ...value, personal: e.target.value })}
-        placeholder="Personal best"
-        aria-label={`${person.name} personal best`}
+        placeholder="Answer to this week's question"
+        aria-label={`${person.name} answer to this week's segue question`}
         className="px-3 py-2 rounded-xl border border-(--color-line)"
       />
       <div className="flex items-center gap-2">
@@ -82,9 +83,17 @@ function SegueRow({
 }
 
 export function SegueSection({ data }: { data: RunnerData }) {
+  const question = segueQuestionFor(data.meeting.date);
+
   return (
     <>
-      <SectionTitle title="Segue" hint="One personal best and one professional best. One line each." />
+      <SectionTitle title="Segue" hint="Round the room. One line each, no discussion yet." />
+      <div className="mb-4 p-4 rounded-xl bg-(--color-grey-bg) border border-(--color-line)">
+        <div className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) mb-1">
+          This week&rsquo;s question
+        </div>
+        <p className="font-medium">{question}</p>
+      </div>
       {data.people.map((p) => (
         <SegueRow
           key={p.id}
