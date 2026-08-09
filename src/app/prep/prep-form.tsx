@@ -280,23 +280,24 @@ function PriorityGroupBlock({
 /**
  * Creation only — On/Off review lives in the block below, so no control appears twice.
  *
- * Rendered whenever a slot is still empty, but only *urgent* (amber, prompting copy) when
- * the month genuinely needs setting up. The rest of the time it's a quiet affordance, so
- * filling one slot never hides the other half-way through the job.
+ * Department goals only. At Easy Europe's size each manager *is* their department, so a
+ * separate "mine" monthly slot asked the same question twice and doubled the prep cost.
+ * Ownership lives on the weekly steps instead, where it can fan out to whoever does the
+ * work. Individual priorities still exist in the model — R4's "that's not a to-do, it's a
+ * priority" escape hatch creates them, and any already set still show and review below —
+ * they're just no longer something to fill in every month.
  */
 function MonthlySetup({
   ownerId,
   department,
   monthDueDate,
   hasDepartment,
-  hasIndividual,
   urgent,
 }: {
   ownerId: string;
   department: string;
   monthDueDate: string;
   hasDepartment: boolean;
-  hasIndividual: boolean;
   urgent: boolean;
 }) {
   const [pending, startTransition] = useTransition();
@@ -330,32 +331,25 @@ function MonthlySetup({
     </form>
   );
 
-  const anySet = hasDepartment || hasIndividual;
-
   return (
     <Card className={`p-5 ${urgent ? "border-(--color-amber)" : ""}`}>
       <SectionTitle
-        title={urgent ? "Set this month" : "Add a monthly priority"}
+        title={urgent ? `Set ${department}'s month` : `Add a ${department} priority`}
         hint={
           urgent
-            ? `Due ${monthDueDate}. One month, then it's reviewed. You'll break it into weekly steps below.`
-            : `Optional, and you can have several of each. Due ${monthDueDate}.`
+            ? `Due ${monthDueDate}. One month, then it's reviewed. You'll break it into weekly steps below, and those can go to anyone.`
+            : `Optional, and you can set several. Due ${monthDueDate}.`
         }
       />
       {slot(
         "department",
-        hasDepartment ? `${department} — another` : `${department} — this month`,
+        hasDepartment ? "Another one" : "This month",
         "Get cost per lead under RM12",
       )}
-      {slot(
-        "individual",
-        hasIndividual ? "Mine — another" : "Mine — this month",
-        "Hire a junior designer",
-      )}
-      {anySet ? null : (
+      {hasDepartment ? null : (
         <p className="text-[0.85rem] text-(--color-muted) mt-3">
-          Three or four between them is plenty. Every one you set is something you&rsquo;ll be
-          asked about every Monday.
+          Two or three is plenty. Every one you set is something you&rsquo;ll be asked about
+          every Monday.
         </p>
       )}
     </Card>
@@ -488,7 +482,6 @@ export function PrepForm({
         department={department}
         monthDueDate={monthDueDate}
         hasDepartment={grouped.department.length > 0}
-        hasIndividual={grouped.individual.length > 0}
         urgent={needsMonthlySetup}
       />
 

@@ -223,13 +223,13 @@ export async function loadPrep(user: User) {
     ) as Record<string, string>,
     /**
      * Whether the month's setup block should *press*. True on the first Monday of a month,
-     * and in any week where this person has no monthly priority at all or one has run past
-     * its date. When false the block is still offered for any empty slot, just quietly — a
-     * card that nags every week is a card people learn to scroll past.
+     * and in any week where this person's department has no monthly goal or one has run
+     * past its date. When false the block is still offered, just quietly — a card that nags
+     * every week is a card people learn to scroll past.
      */
     needsMonthlySetup:
       isFirstMondayOfMonth(meeting.date) ||
-      monthlies.length === 0 ||
+      monthlies.filter((p) => p.scope === "department").length === 0 ||
       monthlies.some((p) => p.due_date < meeting.date),
     monthDueDate: endOfMonth(meeting.date),
     // A plain object rather than a Map: this crosses into a client component.
