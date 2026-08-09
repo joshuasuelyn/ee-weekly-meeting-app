@@ -13,15 +13,35 @@
 // Neither value is a secret. The anon key is designed to sit in public clients; row-level
 // security is the permission boundary. The service-role key is never read by this app.
 
+/**
+ * The Supabase API page shows several URLs and it is easy to copy the wrong one. The
+ * client wants the project origin and appends its own path, so pasting the REST endpoint
+ * produces requests to /rest/v1/rest/v1/... and a bare "Invalid path specified in request
+ * URL" with nothing pointing at the cause. Trim it back to the origin instead of letting
+ * a stray path spend an evening.
+ */
+export function normaliseUrl(raw: string | undefined): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value.replace(/\/+$/, "");
+  }
+}
+
 export function supabaseUrl(): string | undefined {
-  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || undefined;
+  return normaliseUrl(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
 export function supabaseAnonKey(): string | undefined {
   return process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || undefined;
 }
 
-/** The address magic links come back to. */
+/** The address magic links come back to. A trailing slash here yields //auth/callback. */
 export function siteUrl(): string {
-  return process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  return (
+    normaliseUrl(process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL) ??
+    "http://localhost:3000"
+  );
 }
