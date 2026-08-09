@@ -38,10 +38,18 @@ five people five different databases.
 5. **Push to GitHub, import the repo at vercel.com/new.** Framework preset Next.js; no
    build settings to change.
 6. **Vercel → Settings → Environment Variables**, all three environments:
-   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project
-   Settings → API), and `NEXT_PUBLIC_SITE_URL` set to the production domain. Then
-   redeploy — Next.js inlines `NEXT_PUBLIC_*` at build time, so variables added after a
-   build don't reach the browser bundle until the next one.
+   `SUPABASE_URL`, `SUPABASE_ANON_KEY` (Supabase → Project Settings → Data API), and
+   `SITE_URL` set to the production domain, no trailing slash. Then redeploy — variables
+   added after a build don't take effect until the next one.
+
+   **Do not tick "Sensitive".** These values are not secrets — the anon key is designed
+   for public clients and RLS is the permission boundary — and sensitive variables are
+   withheld from the build. That combination silently produced a deployment where every
+   page threw *No database configured* while the dashboard showed all three set.
+
+   The `NEXT_PUBLIC_`-prefixed spellings are still read as a fallback, but prefer the
+   unprefixed names: `NEXT_PUBLIC_*` is inlined into the bundle at build time, so a
+   runtime-only value can never reach it. Nothing here calls Supabase from the browser.
 
 The anon key is the only Supabase key this app uses, and it is designed to be public: RLS
 is the permission boundary. The service-role key is not needed and must never be set here.

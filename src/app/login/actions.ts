@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEV_USER_COOKIE } from "@/lib/auth";
 import { getStore, usingLocalStore } from "@/lib/db";
+import { siteUrl } from "@/lib/supabase/config";
 import { createClient, supabaseConfigured } from "@/lib/supabase/server";
 
 /** Local dev only: "sign in as" without any account to provision. */
@@ -42,7 +43,7 @@ export async function sendMagicLink(
   const { error } = await sb.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/callback`,
+      emailRedirectTo: `${siteUrl()}/auth/callback`,
     },
   });
   if (error) return { error: error.message };

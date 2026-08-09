@@ -28,8 +28,10 @@ export function getStore(): Store {
 
   if (process.env.NODE_ENV === "production" && !building && process.env.DATA_ADAPTER !== "local") {
     throw new Error(
-      "No database configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY " +
-        "on this deployment. (Set DATA_ADAPTER=local to override, for a local production build only.)",
+      "No database configured. Set SUPABASE_URL and SUPABASE_ANON_KEY on this deployment. " +
+        "If they are already set, check they are NOT marked Sensitive on Vercel — the " +
+        "NEXT_PUBLIC_ spellings are inlined at build time and a runtime-only value never " +
+        "reaches them. (Set DATA_ADAPTER=local to override, for a local production build only.)",
     );
   }
 
