@@ -42,6 +42,7 @@ export default async function PrepPage() {
         submitted={prep.submitted}
         people={prep.people}
         parentTextById={prep.parentTextById}
+        alignment={prep.myAlignment}
       />
     </div>
   );

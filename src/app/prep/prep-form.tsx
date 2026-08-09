@@ -4,12 +4,15 @@ import { useState, useTransition } from "react";
 import { SaveDot, useAutosave } from "@/components/autosave";
 import { Card, SectionTitle } from "@/components/ui";
 import {
+  addHeadline,
   addIssues,
   createPriority,
   createTodo,
+  deleteHeadline,
   setMetricValue,
   setPriorityCheck,
   submitPrep,
+  updateHeadline,
 } from "@/app/actions";
 import { nextMonday } from "@/lib/dates";
 import {
@@ -417,6 +420,100 @@ function MonthlySetup({
 }
 
 // ---------------------------------------------------------------------------
+// Cross-department alignment
+// ---------------------------------------------------------------------------
+
+function AlignmentRow({ item }: { item: { id: string; text: string } }) {
+  const { value, update, state } = useAutosave(item.text, (v) => updateHeadline(item.id, v));
+  const [, startTransition] = useTransition();
+  const lines = value.split("\n").filter((l) => l.trim() !== "").length;
+
+  return (
+    <div className="flex items-start gap-2 py-3 border-b border-(--color-line) last:border-0">
+      <textarea
+        value={value}
+        onChange={(e) => update(e.target.value)}
+        rows={Math.min(8, Math.max(2, lines + 1))}
+        aria-label="What other departments need to know"
+        className="flex-1 px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
+      />
+      <div className="w-16 shrink-0 pt-2 grid gap-1">
+        <SaveDot state={state} />
+        <button
+          type="button"
+          onClick={() => startTransition(() => void deleteHeadline(item.id))}
+          className="text-[0.8rem] text-(--color-muted) underline underline-offset-2 text-left"
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AlignmentPrep({
+  meetingId,
+  ownerId,
+  items,
+}: {
+  meetingId: string;
+  ownerId: string;
+  items: { id: string; text: string }[];
+}) {
+  const [text, setText] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <Card className="p-5">
+      <SectionTitle
+        title="Cross-department alignment"
+        hint="Anything another department needs to know before it bites them. Optional — most weeks there's nothing, and that's a real answer."
+        right={
+          items.length > 0 ? (
+            <span className="pill bg-(--color-grey-bg) text-(--color-muted)">
+              {items.length} to raise
+            </span>
+          ) : null
+        }
+      />
+
+      {items.map((item) => (
+        <AlignmentRow key={item.id} item={item} />
+      ))}
+
+      <form
+        action={(fd) =>
+          startTransition(async () => {
+            await addHeadline(fd);
+            setText("");
+          })
+        }
+        className={items.length > 0 ? "pt-4" : ""}
+      >
+        <input type="hidden" name="meeting_id" value={meetingId} />
+        <input type="hidden" name="user_id" value={ownerId} />
+        <textarea
+          name="text"
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Supplier terms change from 1 Sept — anyone quoting a Sept departure needs to reprice."
+          aria-label="What other departments need to know"
+          className="w-full px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
+        />
+        <button
+          type="submit"
+          disabled={text.trim() === "" || pending}
+          className="mt-2 px-4 py-2 rounded-xl border border-(--color-line) font-medium disabled:opacity-40"
+        >
+          Add
+        </button>
+      </form>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Issues
 // ---------------------------------------------------------------------------
 
@@ -488,6 +585,7 @@ export function PrepForm({
   submitted,
   people,
   parentTextById,
+  alignment,
 }: {
   meetingId: string;
   meetingDate: string;
@@ -501,6 +599,7 @@ export function PrepForm({
   submitted: boolean;
   people: { id: string; name: string }[];
   parentTextById: Record<string, string>;
+  alignment: { id: string; text: string }[];
 }) {
   const [isSubmitted, setSubmitted] = useState(submitted);
   const [, startTransition] = useTransition();
@@ -606,6 +705,9 @@ export function PrepForm({
           </div>
         ) : null}
       </Card>
+
+      {/* Mirrors the meeting's order: numbers, priorities, alignment, then issues. */}
+      <AlignmentPrep meetingId={meetingId} ownerId={ownerId} items={alignment} />
 
       <Card className="p-5">
         <SectionTitle title="Add issues" hint="One per line. Paste a dump — it gets split for you." />

@@ -97,25 +97,7 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
     lines.push("");
   }
 
-  // 4 · Headlines
-  lines.push("## Headlines");
-  lines.push("");
-  if (ctx.headlines.length === 0) lines.push("_Not recorded._");
-  for (const h of ctx.headlines) {
-    // Headlines can run to several lines; keep each one a list item rather than letting a
-    // newline break out of the bullet and mangle the rest of the document.
-    const written = h.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (written.length === 0) continue;
-    if (written.length === 1) {
-      lines.push(`- **${name(h.user_id)}** — ${written[0]}`);
-    } else {
-      lines.push(`- **${name(h.user_id)}**`);
-      for (const l of written) lines.push(`  - ${l}`);
-    }
-  }
-  lines.push("");
-
-  // 5 · To-do review
+  // 4 · To-do review
   lines.push("## To-do review");
   lines.push("");
   lines.push(
@@ -128,6 +110,24 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
     const box = t.status === "done" ? "x" : " ";
     const carried = t.weeks_carried > 0 ? ` _(carried ${t.weeks_carried}w)_` : "";
     lines.push(`- [${box}] ${t.text} — ${name(t.owner_id)}, due ${t.due_date}${carried}`);
+  }
+  lines.push("");
+
+  // 5 · Cross-department alignment
+  lines.push("## Cross-department alignment");
+  lines.push("");
+  if (ctx.headlines.length === 0) lines.push("_Nothing raised._");
+  for (const h of ctx.headlines) {
+    // These can run to several lines; keep each one a list item rather than letting a
+    // newline break out of the bullet and mangle the rest of the document.
+    const written = h.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (written.length === 0) continue;
+    if (written.length === 1) {
+      lines.push(`- **${name(h.user_id)}** — ${written[0]}`);
+    } else {
+      lines.push(`- **${name(h.user_id)}**`);
+      for (const l of written) lines.push(`  - ${l}`);
+    }
   }
   lines.push("");
 

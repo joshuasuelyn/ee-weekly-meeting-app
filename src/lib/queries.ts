@@ -176,14 +176,16 @@ export async function loadPrep(user: User) {
   const store = getStore();
   const meeting = await getOrCreateCurrentMeeting();
 
-  const [settings, metrics, priorities, meetings, submissions, users] = await Promise.all([
-    store.getSettings(),
-    store.listMetrics(),
-    store.listPriorities(),
-    store.listMeetings(),
-    store.listSubmissions(meeting.id),
-    store.listUsers(),
-  ]);
+  const [settings, metrics, priorities, meetings, submissions, users, headlines] =
+    await Promise.all([
+      store.getSettings(),
+      store.listMetrics(),
+      store.listPriorities(),
+      store.listMeetings(),
+      store.listSubmissions(meeting.id),
+      store.listUsers(),
+      store.listHeadlines(meeting.id),
+    ]);
 
   const previousMeeting =
     meetings.filter((m) => m.date < meeting.date).sort((a, b) => b.date.localeCompare(a.date))[0] ??
@@ -213,6 +215,13 @@ export async function loadPrep(user: User) {
     grouped: groupPriorities(myPriorities, meeting.date, priorities),
     /** Everyone a weekly step can be handed to — the cascade runs to people, not to roles. */
     people: users.map((u) => ({ id: u.id, name: u.name })),
+    /**
+     * My cross-department points for this meeting. Written on Friday means Monday's
+     * section is read aloud rather than typed — the same reason the numbers are prepped.
+     */
+    myAlignment: headlines
+      .filter((h) => h.user_id === user.id)
+      .map((h) => ({ id: h.id, text: h.text })),
     /**
      * Text of the monthly goals my steps hang off, including goals owned by someone else.
      * A step cascaded down from another manager arrives with no context otherwise.

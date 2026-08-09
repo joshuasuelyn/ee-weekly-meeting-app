@@ -7,8 +7,8 @@ import { formatDate } from "@/lib/dates";
 import { SECTIONS, TOTAL_MEETING_MINUTES } from "@/lib/types";
 import type { RunnerData } from "./data";
 import {
+  AlignmentSection,
   ConcludeSection,
-  HeadlinesSection,
   IdsSection,
   PrioritiesSection,
   ScorecardSection,
@@ -17,12 +17,13 @@ import {
 } from "./sections";
 import { SectionTimer } from "./timer";
 
+// Must stay in lockstep with SECTIONS — index 0 renders section 1.
 const RENDERERS = [
   SegueSection,
   ScorecardSection,
   PrioritiesSection,
-  HeadlinesSection,
   TodoReviewSection,
+  AlignmentSection,
   IdsSection,
   ConcludeSection,
 ];
@@ -99,7 +100,7 @@ export function Runner({ data }: { data: RunnerData }) {
                 >
                   {done ? "✓" : s.n}
                 </span>
-                <span className="flex-1">{s.name}</span>
+                <span className="flex-1">{s.short}</span>
                 <span className="text-[0.8rem] text-(--color-muted) tabular-nums">{s.minutes}m</span>
               </button>
             );
@@ -129,7 +130,7 @@ export function Runner({ data }: { data: RunnerData }) {
                 onClick={() => startTransition(() => void goToSection(data.meeting.id, current + 1))}
                 className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-30"
               >
-                Next: {SECTIONS[current]?.name ?? "—"} →
+                Next: {SECTIONS[current]?.short ?? "—"} →
               </button>
             </div>
           ) : null}

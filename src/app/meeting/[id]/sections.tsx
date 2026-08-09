@@ -454,7 +454,7 @@ function HeadlineRow({ headline }: { headline: RunnerHeadline }) {
           value={value}
           onChange={(e) => update(e.target.value)}
           rows={Math.min(10, Math.max(2, lines + 1))}
-          aria-label={`${headline.userName} headline`}
+          aria-label={`${headline.userName} — what other departments need to know`}
           className="flex-1 px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
         />
         <div className="w-16 shrink-0 pt-2 grid gap-1">
@@ -486,7 +486,7 @@ function HeadlineComposer({ data }: { data: RunnerData }) {
       <select
         value={userId}
         onChange={(e) => setUserId(e.target.value)}
-        aria-label="Whose headline"
+        aria-label="Whose point"
         className="px-3 py-2 rounded-xl border border-(--color-line) bg-(--color-panel)"
       >
         {data.people.map((p) => (
@@ -513,7 +513,7 @@ function HeadlineComposer({ data }: { data: RunnerData }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="What other departments need to know. As long as it needs to be."
-          aria-label="New headline"
+          aria-label="What other departments need to know"
           className="flex-1 min-w-[14rem] px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
         />
         <button
@@ -521,19 +521,19 @@ function HeadlineComposer({ data }: { data: RunnerData }) {
           disabled={text.trim() === "" || pending}
           className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-40"
         >
-          Add headline
+          Add
         </button>
       </form>
     </div>
   );
 }
 
-export function HeadlinesSection({ data }: { data: RunnerData }) {
+export function AlignmentSection({ data }: { data: RunnerData }) {
   return (
     <>
       <SectionTitle
-        title="Headlines"
-        hint="Cross-department alignment. Not a status round — friction gets solved in IDS, not reported here."
+        title="Cross-department alignment"
+        hint="What another department needs to know. Not a status round — friction gets solved in IDS, not reported here."
         right={
           <span className="pill bg-(--color-grey-bg) text-(--color-muted)">
             {data.headlines.length} raised
@@ -543,7 +543,7 @@ export function HeadlinesSection({ data }: { data: RunnerData }) {
 
       {data.headlines.length === 0 ? (
         <Empty>
-          Nothing raised. Ask the room — nobody owes a headline, and no news is a real answer.
+          Nothing raised. Ask the room — nobody owes one, and no news is a real answer.
         </Empty>
       ) : (
         data.headlines.map((h) => <HeadlineRow key={h.id} headline={h} />)

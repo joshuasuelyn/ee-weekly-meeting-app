@@ -167,14 +167,30 @@ export interface Database {
   settings: Settings;
 }
 
+/**
+ * `short` is what the left rail shows; `name` is the section heading. They differ only for
+ * cross-department alignment, whose full name is deliberately plain English — "headlines"
+ * is EOS vocabulary the team doesn't use — but too long to sit in the rail.
+ *
+ * Order note: sections 2, 3 and 4 are all binary, so they run back to back as one fast
+ * block. Alignment sits at 5, immediately before IDS: it's the only prose section before
+ * the discussion, and it works as a residual — "what matters that the numbers didn't
+ * show" — which needs the numbers to have been read first.
+ */
 export const SECTIONS = [
-  { n: 1, name: "Segue", minutes: 5, blurb: "One personal best + one professional best. One line each." },
-  { n: 2, name: "Scorecard", minutes: 5, blurb: "Read the numbers. On or off track. No discussion." },
-  { n: 3, name: "Priorities", minutes: 5, blurb: "On or off track only. Off-track drops to Issues." },
-  { n: 4, name: "Headlines", minutes: 5, blurb: "What other departments need to know. Nobody owes one." },
-  { n: 5, name: "To-Do Review", minutes: 5, blurb: "Done or not done. No explanations. Target 90%." },
-  { n: 6, name: "IDS", minutes: 60, blurb: "Identify · Discuss · Solve. Top 3 issues. Each solve creates a to-do." },
-  { n: 7, name: "Conclude", minutes: 5, blurb: "Recap to-dos, cascading messages, rate the meeting 1–10." },
+  { n: 1, name: "Segue", short: "Segue", minutes: 5, blurb: "One personal best + one professional best. One line each." },
+  { n: 2, name: "Scorecard", short: "Scorecard", minutes: 5, blurb: "Read the numbers. On or off track. No discussion." },
+  { n: 3, name: "Priorities", short: "Priorities", minutes: 5, blurb: "On or off track only. Off-track drops to Issues." },
+  { n: 4, name: "To-Do Review", short: "To-Do Review", minutes: 5, blurb: "Done or not done. No explanations. Target 90%." },
+  {
+    n: 5,
+    name: "Cross-department alignment",
+    short: "Alignment",
+    minutes: 5,
+    blurb: "What other departments need to know. Nobody owes one.",
+  },
+  { n: 6, name: "IDS", short: "IDS", minutes: 60, blurb: "Identify · Discuss · Solve. Top 3 issues. Each solve creates a to-do." },
+  { n: 7, name: "Conclude", short: "Conclude", minutes: 5, blurb: "Recap to-dos, cascading messages, rate the meeting 1–10." },
 ] as const;
 
 export const TOTAL_MEETING_MINUTES = SECTIONS.reduce((sum, s) => sum + s.minutes, 0);
