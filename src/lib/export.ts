@@ -102,7 +102,16 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
   lines.push("");
   if (ctx.headlines.length === 0) lines.push("_Not recorded._");
   for (const h of ctx.headlines) {
-    if (h.text.trim()) lines.push(`- **${name(h.user_id)}** — ${h.text}`);
+    // Headlines can run to several lines; keep each one a list item rather than letting a
+    // newline break out of the bullet and mangle the rest of the document.
+    const written = h.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (written.length === 0) continue;
+    if (written.length === 1) {
+      lines.push(`- **${name(h.user_id)}** — ${written[0]}`);
+    } else {
+      lines.push(`- **${name(h.user_id)}**`);
+      for (const l of written) lines.push(`  - ${l}`);
+    }
   }
   lines.push("");
 

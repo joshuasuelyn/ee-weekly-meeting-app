@@ -446,19 +446,21 @@ function HeadlineRow({
   initial: string;
 }) {
   const { value, update, state } = useAutosave(initial, (v) => setHeadline(meetingId, person.id, v));
+  const lines = value.split("\n").filter((l) => l.trim() !== "").length;
 
   return (
-    <div className="grid gap-2 md:grid-cols-[8rem_1fr] items-center py-3 border-b border-(--color-line) last:border-0">
-      <div className="font-medium">{person.name}</div>
-      <div className="flex items-center gap-2">
-        <input
+    <div className="grid gap-2 md:grid-cols-[8rem_1fr] items-start py-3 border-b border-(--color-line) last:border-0">
+      <div className="font-medium md:pt-2">{person.name}</div>
+      <div className="flex items-start gap-2">
+        <textarea
           value={value}
           onChange={(e) => update(e.target.value)}
-          placeholder="One line the other departments need to know"
+          rows={Math.min(8, Math.max(2, lines + 1))}
+          placeholder="What other departments need to know"
           aria-label={`${person.name} headline`}
-          className="flex-1 px-3 py-2 rounded-xl border border-(--color-line)"
+          className="flex-1 px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
         />
-        <span className="w-16 shrink-0">
+        <span className="w-16 shrink-0 pt-2">
           <SaveDot state={state} />
         </span>
       </div>
@@ -471,7 +473,7 @@ export function HeadlinesSection({ data }: { data: RunnerData }) {
     <>
       <SectionTitle
         title="Headlines"
-        hint="Cross-department alignment, one line each. Not a status round — friction gets solved in IDS, not reported here."
+        hint="Cross-department alignment. Not a status round — friction gets solved in IDS, not reported here."
       />
       {data.people.map((p) => (
         <HeadlineRow

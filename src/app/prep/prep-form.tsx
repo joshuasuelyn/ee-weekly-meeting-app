@@ -137,17 +137,20 @@ function PriorityRow({
 }
 
 /**
- * The amber nudge under a monthly priority with nothing moving it this week. A prompt, not
- * a gate — the same weight as R4's "that's not a to-do, it's a priority".
+ * Adds a weekly step under a monthly priority. Always available — a month's work rarely
+ * fits in one step a week — but it only *prompts* when nothing is moving this priority
+ * forward. A prompt, not a gate, in the same weight class as R4.
  */
 function StepAdder({
   ownerId,
   parentId,
   meetingDate,
+  urgent,
 }: {
   ownerId: string;
   parentId: string;
   meetingDate: string;
+  urgent: boolean;
 }) {
   const [text, setText] = useState("");
   const [pending, startTransition] = useTransition();
@@ -160,27 +163,35 @@ function StepAdder({
           setText("");
         })
       }
-      className="ml-1 pl-4 border-l-2 border-l-(--color-amber) py-3"
+      className={`ml-1 pl-4 py-3 border-l-2 ${
+        urgent ? "border-l-(--color-amber)" : "border-l-(--color-line)"
+      }`}
     >
       <input type="hidden" name="owner_id" value={ownerId} />
       <input type="hidden" name="parent_id" value={parentId} />
       <input type="hidden" name="horizon" value="week" />
       <input type="hidden" name="due_date" value={nextMonday(meetingDate)} />
 
-      <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{NO_STEP_PROMPT}</p>
+      {urgent ? (
+        <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{NO_STEP_PROMPT}</p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <input
           name="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Rebuild the top 3 ad creatives"
+          placeholder={urgent ? "Rebuild the top 3 ad creatives" : "Another step this week"}
           aria-label="This week's step"
           className="flex-1 min-w-[14rem] px-3 py-2 rounded-xl border border-(--color-line)"
         />
         <button
           type="submit"
           disabled={text.trim() === "" || pending}
-          className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-40"
+          className={`px-4 py-2 rounded-xl font-medium disabled:opacity-40 ${
+            urgent
+              ? "bg-(--color-ink) text-white"
+              : "border border-(--color-line) hover:bg-(--color-grey-bg)"
+          }`}
         >
           Add step
         </button>
@@ -218,9 +229,12 @@ function PriorityGroupBlock({
           indent
         />
       ))}
-      {group.needsStep ? (
-        <StepAdder ownerId={ownerId} parentId={group.parent.id} meetingDate={meetingDate} />
-      ) : null}
+      <StepAdder
+        ownerId={ownerId}
+        parentId={group.parent.id}
+        meetingDate={meetingDate}
+        urgent={group.needsStep}
+      />
     </div>
   );
 }
@@ -278,7 +292,7 @@ function MonthlySetup({
     </form>
   );
 
-  if (hasDepartment && hasIndividual) return null;
+  const anySet = hasDepartment || hasIndividual;
 
   return (
     <Card className={`p-5 ${urgent ? "border-(--color-amber)" : ""}`}>
@@ -287,13 +301,25 @@ function MonthlySetup({
         hint={
           urgent
             ? `Due ${monthDueDate}. One month, then it's reviewed. You'll break it into weekly steps below.`
-            : `Optional. Due ${monthDueDate} if you add one.`
+            : `Optional, and you can have several of each. Due ${monthDueDate}.`
         }
       />
-      {hasDepartment
-        ? null
-        : slot("department", `${department} — this month`, "Get cost per lead under RM12")}
-      {hasIndividual ? null : slot("individual", "Mine — this month", "Hire a junior designer")}
+      {slot(
+        "department",
+        hasDepartment ? `${department} — another` : `${department} — this month`,
+        "Get cost per lead under RM12",
+      )}
+      {slot(
+        "individual",
+        hasIndividual ? "Mine — another" : "Mine — this month",
+        "Hire a junior designer",
+      )}
+      {anySet ? null : (
+        <p className="text-[0.85rem] text-(--color-muted) mt-3">
+          Three or four between them is plenty. Every one you set is something you&rsquo;ll be
+          asked about every Monday.
+        </p>
+      )}
     </Card>
   );
 }

@@ -2,7 +2,7 @@
 // provisioning anything. Same interface as the Supabase adapter; not for production use —
 // it assumes a single Node process and serialises writes through one promise chain.
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { CarryUpdate } from "../rules";
 import type {
@@ -68,9 +68,17 @@ async function load(): Promise<LocalDatabase> {
   }
 }
 
+/**
+ * Written to a temp file and renamed, because rename is atomic. A plain write that gets
+ * interrupted — stopping the dev server mid-save — leaves truncated JSON, and `load()`
+ * treats unparseable JSON as "no database yet" and silently reseeds. Losing a week of
+ * test data to a Ctrl-C is a bad way to find that out.
+ */
 async function persist(db: LocalDatabase): Promise<void> {
   await mkdir(dirname(DB_PATH), { recursive: true });
-  await writeFile(DB_PATH, JSON.stringify(db, null, 2), "utf8");
+  const tmp = `${DB_PATH}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(db, null, 2), "utf8");
+  await rename(tmp, DB_PATH);
 }
 
 /** Serialises read-modify-write so two concurrent submissions can't clobber each other. */
