@@ -14,19 +14,41 @@ file-backed store at `.data/db.json` and a "sign in as" picker in place of magic
 An amber banner across the top says so, so nobody mistakes it for the real thing.
 
 ```bash
-npm test        # 52 tests: the R1–R12 rule engine plus a three-week cycle on the real store
+npm test        # 82 tests: the R1–R12 rule engine plus a three-week cycle on the real store
 npm run build   # production build
 ```
 
 ## Going live on Supabase + Vercel
 
-1. Create a Supabase project.
-2. In the SQL editor run `supabase/migration.sql`, then `supabase/02-seed.sql`.
-3. Authentication → Providers → Email: enable it, disable "Confirm email" if you want
-   one-click magic links.
-4. Set the three variables from `.env.example` in Vercel, and `NEXT_PUBLIC_SITE_URL` to
-   your deployment URL. Add `<site>/auth/callback` to Supabase's redirect allow-list.
-5. Deploy. The app switches to Supabase automatically once the URL and key are present.
+**Supabase first — Vercel has nothing to talk to without it.** The file-backed store is a
+development convenience only; on a serverless host every instance gets its own disposable
+filesystem, so `getStore()` refuses to fall back to it in production rather than showing
+five people five different databases.
+
+1. **Create a Supabase project.** Region Singapore is the nearest to Kuala Lumpur.
+2. **SQL editor → run `supabase/migration.sql`, then `supabase/02-seed.sql`.** The first
+   builds the schema and the RLS policies; the second inserts the five managers, the
+   eleven metric definitions and the rollout start date.
+3. **Authentication → Sign In / Providers → Email.** Enable it. Leave user signups
+   enabled — the first magic link is what creates someone's `auth.users` row, and the app
+   already refuses any address that isn't on the team list. Turning "Confirm email" off
+   makes the link one click instead of two.
+4. **Authentication → URL Configuration.** Set Site URL to the Vercel domain and add
+   `https://<domain>/auth/callback` to the redirect allow-list.
+5. **Push to GitHub, import the repo at vercel.com/new.** Framework preset Next.js; no
+   build settings to change.
+6. **Vercel → Settings → Environment Variables**, all three environments:
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project
+   Settings → API), and `NEXT_PUBLIC_SITE_URL` set to the production domain. Then
+   redeploy — Next.js inlines `NEXT_PUBLIC_*` at build time, so variables added after a
+   build don't reach the browser bundle until the next one.
+
+The anon key is the only Supabase key this app uses, and it is designed to be public: RLS
+is the permission boundary. The service-role key is not needed and must never be set here.
+
+**Preview deployments cannot sign in.** `NEXT_PUBLIC_SITE_URL` points at production, so a
+magic link sent from a preview URL lands on the production domain. Test on production, or
+add that preview's `/auth/callback` to the Supabase allow-list first.
 
 **Before the first magic link goes out**, fix the email addresses in Admin → People. Only
 `joshua@easyeurope.com.my` is confirmed; the rest are `firstname@easyeurope.com.my`
