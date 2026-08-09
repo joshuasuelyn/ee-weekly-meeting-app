@@ -176,12 +176,13 @@ export async function loadPrep(user: User) {
   const store = getStore();
   const meeting = await getOrCreateCurrentMeeting();
 
-  const [settings, metrics, priorities, meetings, submissions] = await Promise.all([
+  const [settings, metrics, priorities, meetings, submissions, users] = await Promise.all([
     store.getSettings(),
     store.listMetrics(),
     store.listPriorities(),
     store.listMeetings(),
     store.listSubmissions(meeting.id),
+    store.listUsers(),
   ]);
 
   const previousMeeting =
@@ -209,6 +210,17 @@ export async function loadPrep(user: User) {
     })),
     myPriorities,
     grouped: groupPriorities(myPriorities, meeting.date),
+    /** Everyone a weekly step can be handed to — the cascade runs to people, not to roles. */
+    people: users.map((u) => ({ id: u.id, name: u.name })),
+    /**
+     * Text of the monthly goals my steps hang off, including goals owned by someone else.
+     * A step cascaded down from another manager arrives with no context otherwise.
+     */
+    parentTextById: Object.fromEntries(
+      priorities
+        .filter((p) => myPriorities.some((m) => m.parent_id === p.id))
+        .map((p) => [p.id, p.text]),
+    ) as Record<string, string>,
     /**
      * Whether the month's setup block should *press*. True on the first Monday of a month,
      * and in any week where this person has no monthly priority at all or one has run past

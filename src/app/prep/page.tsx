@@ -40,6 +40,8 @@ export default async function PrepPage() {
         needsMonthlySetup={prep.needsMonthlySetup}
         monthDueDate={prep.monthDueDate}
         submitted={prep.submitted}
+        people={prep.people}
+        parentTextById={prep.parentTextById}
       />
     </div>
   );

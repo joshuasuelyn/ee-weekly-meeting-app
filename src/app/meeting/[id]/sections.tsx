@@ -260,7 +260,9 @@ function PriorityLine({
         <p className="text-[0.8rem] text-(--color-muted)">
           {indent ? "step" : priority.horizon === "week" ? "this week" : "this month"} · due{" "}
           {formatShortDate(priority.dueDate)}
-          {indent ? "" : ` · ${priority.ownerName}`}
+          {/* Steps carry their own owner — a Marketing goal can cascade to Nick — so the
+              name matters most on the indented rows, not least. */}
+          {` · ${priority.ownerName}`}
           {priority.needsStep ? (
             <span className="text-(--color-amber) font-medium"> · no step this week</span>
           ) : null}

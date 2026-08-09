@@ -82,11 +82,17 @@ function PriorityRow({
   priority,
   initial,
   indent = false,
+  ownerName,
+  towards,
 }: {
   meetingId: string;
   priority: Priority;
   initial: boolean | null;
   indent?: boolean;
+  /** Shown when a step belongs to someone other than the person reading the screen. */
+  ownerName?: string;
+  /** The monthly goal this step serves, when its parent isn't on this screen. */
+  towards?: string;
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
   const [, startTransition] = useTransition();
@@ -105,7 +111,10 @@ function PriorityRow({
       <div className="flex-1 min-w-[13rem]">
         <p className={indent ? "text-[0.95rem]" : "font-medium"}>{priority.text}</p>
         <p className="text-[0.82rem] text-(--color-muted)">
-          {indent ? "step · due" : "this month · due"} {priority.due_date}
+          {indent || priority.horizon === "week" ? "step · due" : "this month · due"}{" "}
+          {priority.due_date}
+          {ownerName ? ` · ${ownerName}` : ""}
+          {towards ? ` · toward "${towards}"` : ""}
         </p>
       </div>
       <div className="flex gap-2">
@@ -143,60 +152,82 @@ function PriorityRow({
  */
 function StepAdder({
   ownerId,
+  people,
   parentId,
   meetingDate,
   urgent,
 }: {
   ownerId: string;
+  people: { id: string; name: string }[];
   parentId: string;
   meetingDate: string;
   urgent: boolean;
 }) {
   const [text, setText] = useState("");
+  // A step is where the goal meets a person, and it need not be the person who owns the
+  // goal — a Marketing goal can cascade to Nick. Exactly one name, per R3.
+  const [stepOwner, setStepOwner] = useState(ownerId);
   const [pending, startTransition] = useTransition();
 
   return (
-    <form
-      action={(fd) =>
-        startTransition(async () => {
-          await createPriority(fd);
-          setText("");
-        })
-      }
+    <div
       className={`ml-1 pl-4 py-3 border-l-2 ${
         urgent ? "border-l-(--color-amber)" : "border-l-(--color-line)"
       }`}
     >
-      <input type="hidden" name="owner_id" value={ownerId} />
-      <input type="hidden" name="parent_id" value={parentId} />
-      <input type="hidden" name="horizon" value="week" />
-      <input type="hidden" name="due_date" value={nextMonday(meetingDate)} />
-
       {urgent ? (
         <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{NO_STEP_PROMPT}</p>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <input
-          name="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={urgent ? "Rebuild the top 3 ad creatives" : "Another step this week"}
-          aria-label="This week's step"
-          className="flex-1 min-w-[14rem] px-3 py-2 rounded-xl border border-(--color-line)"
-        />
-        <button
-          type="submit"
-          disabled={text.trim() === "" || pending}
-          className={`px-4 py-2 rounded-xl font-medium disabled:opacity-40 ${
-            urgent
-              ? "bg-(--color-ink) text-white"
-              : "border border-(--color-line) hover:bg-(--color-grey-bg)"
-          }`}
+        {/* Outside the form: React resets fields inside a form action on completion. */}
+        <select
+          value={stepOwner}
+          onChange={(e) => setStepOwner(e.target.value)}
+          aria-label="Who owns this step"
+          className="px-3 py-2 rounded-xl border border-(--color-line) bg-(--color-panel)"
         >
-          Add step
-        </button>
+          {people.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+
+        <form
+          action={(fd) =>
+            startTransition(async () => {
+              await createPriority(fd);
+              setText("");
+            })
+          }
+          className="flex-1 min-w-[16rem] flex flex-wrap gap-2"
+        >
+          <input type="hidden" name="owner_id" value={stepOwner} />
+          <input type="hidden" name="parent_id" value={parentId} />
+          <input type="hidden" name="horizon" value="week" />
+          <input type="hidden" name="due_date" value={nextMonday(meetingDate)} />
+          <input
+            name="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={urgent ? "Create 3 new ad creatives" : "Another step this week"}
+            aria-label="This week's step"
+            className="flex-1 min-w-[13rem] px-3 py-2 rounded-xl border border-(--color-line)"
+          />
+          <button
+            type="submit"
+            disabled={text.trim() === "" || pending}
+            className={`px-4 py-2 rounded-xl font-medium disabled:opacity-40 ${
+              urgent
+                ? "bg-(--color-ink) text-white"
+                : "border border-(--color-line) hover:bg-(--color-grey-bg)"
+            }`}
+          >
+            Add step
+          </button>
+        </form>
       </div>
-    </form>
+    </div>
   );
 }
 
@@ -205,14 +236,18 @@ function PriorityGroupBlock({
   meetingId,
   meetingDate,
   ownerId,
+  people,
   checks,
 }: {
   group: PriorityGroup;
   meetingId: string;
   meetingDate: string;
   ownerId: string;
+  people: { id: string; name: string }[];
   checks: Record<string, boolean | null>;
 }) {
+  const nameOf = (id: string) => people.find((p) => p.id === id)?.name;
+
   return (
     <div className="mb-4 last:mb-0">
       <PriorityRow
@@ -227,10 +262,13 @@ function PriorityGroupBlock({
           priority={s}
           initial={checks[s.id] ?? null}
           indent
+          // Only name the owner when it isn't the person reading the screen.
+          ownerName={s.owner_id === ownerId ? undefined : nameOf(s.owner_id)}
         />
       ))}
       <StepAdder
         ownerId={ownerId}
+        people={people}
         parentId={group.parent.id}
         meetingDate={meetingDate}
         urgent={group.needsStep}
@@ -394,6 +432,8 @@ export function PrepForm({
   needsMonthlySetup,
   monthDueDate,
   submitted,
+  people,
+  parentTextById,
 }: {
   meetingId: string;
   meetingDate: string;
@@ -405,6 +445,8 @@ export function PrepForm({
   needsMonthlySetup: boolean;
   monthDueDate: string;
   submitted: boolean;
+  people: { id: string; name: string }[];
+  parentTextById: Record<string, string>;
 }) {
   const [isSubmitted, setSubmitted] = useState(submitted);
   const [, startTransition] = useTransition();
@@ -414,7 +456,7 @@ export function PrepForm({
   const unstepped = allGroups.filter((g) => g.needsStep).length;
   const nothingAtAll = allGroups.length === 0 && grouped.orphanWeeklies.length === 0;
 
-  const groupProps = { meetingId, meetingDate, ownerId, checks };
+  const groupProps = { meetingId, meetingDate, ownerId, people, checks };
 
   return (
     <div className="grid gap-6">
@@ -495,7 +537,7 @@ export function PrepForm({
         {grouped.orphanWeeklies.length > 0 ? (
           <div>
             <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
-              This week only
+              Handed to me this week
             </h3>
             {grouped.orphanWeeklies.map((p) => (
               <PriorityRow
@@ -503,6 +545,9 @@ export function PrepForm({
                 meetingId={meetingId}
                 priority={p}
                 initial={checks[p.id] ?? null}
+                // A step cascaded from someone else's monthly goal — say which one, or it
+                // arrives as an orphan task with no reason attached.
+                towards={p.parent_id ? parentTextById[p.parent_id] : undefined}
               />
             ))}
           </div>
