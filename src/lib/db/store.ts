@@ -102,7 +102,9 @@ export interface Store {
   setSegue(meetingId: string, userId: string, personal: string, professional: string): Promise<void>;
 
   listHeadlines(meetingId: string): Promise<Headline[]>;
-  setHeadline(meetingId: string, userId: string, text: string): Promise<void>;
+  addHeadline(meetingId: string, userId: string, text: string): Promise<Headline>;
+  updateHeadline(id: string, text: string): Promise<void>;
+  deleteHeadline(id: string): Promise<void>;
 
   listRatings(meetingId: string): Promise<Rating[]>;
   setRating(meetingId: string, userId: string, score: number): Promise<void>;

@@ -284,12 +284,32 @@ export const localStore: Store = {
     }),
 
   listHeadlines: (meetingId) =>
-    read((db) => structuredClone(db.headlines.filter((h) => h.meeting_id === meetingId))),
-  setHeadline: (meetingId, userId, text) =>
+    read((db) =>
+      structuredClone(db.headlines.filter((h) => h.meeting_id === meetingId)).sort((a, b) =>
+        a.created_at.localeCompare(b.created_at),
+      ),
+    ),
+  addHeadline: (meetingId, userId, text) =>
     mutate((db) => {
-      const existing = db.headlines.find((h) => h.meeting_id === meetingId && h.user_id === userId);
-      if (existing) existing.text = text;
-      else db.headlines.push({ meeting_id: meetingId, user_id: userId, text } satisfies Headline);
+      const row: Headline = {
+        id: id(),
+        meeting_id: meetingId,
+        user_id: userId,
+        text,
+        created_at: now(),
+      };
+      db.headlines.push(row);
+      return structuredClone(row);
+    }),
+  updateHeadline: (hid, text) =>
+    mutate((db) => {
+      const h = db.headlines.find((x) => x.id === hid);
+      if (h) h.text = text;
+    }),
+  deleteHeadline: (hid) =>
+    mutate((db) => {
+      const i = db.headlines.findIndex((x) => x.id === hid);
+      if (i !== -1) db.headlines.splice(i, 1);
     }),
 
   listRatings: (meetingId) =>

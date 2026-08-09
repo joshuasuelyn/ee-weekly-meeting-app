@@ -272,16 +272,29 @@ export const supabaseStore: Store = {
   async listHeadlines(meetingId) {
     const sb = await db();
     return unwrap(
-      await sb.from("headlines").select("*").eq("meeting_id", meetingId),
+      await sb.from("headlines").select("*").eq("meeting_id", meetingId).order("created_at"),
       "listHeadlines",
     ) as Headline[];
   },
-  async setHeadline(meetingId, userId, text) {
+  async addHeadline(meetingId, userId, text) {
     const sb = await db();
-    const res = await sb
+    const { data, error } = await sb
       .from("headlines")
-      .upsert({ meeting_id: meetingId, user_id: userId, text }, { onConflict: "meeting_id,user_id" });
-    if (res.error) throw new Error(`setHeadline: ${res.error.message}`);
+      .insert({ meeting_id: meetingId, user_id: userId, text })
+      .select()
+      .single();
+    if (error) throw new Error(`addHeadline: ${error.message}`);
+    return data as Headline;
+  },
+  async updateHeadline(id, text) {
+    const sb = await db();
+    const res = await sb.from("headlines").update({ text }).eq("id", id);
+    if (res.error) throw new Error(`updateHeadline: ${res.error.message}`);
+  },
+  async deleteHeadline(id) {
+    const sb = await db();
+    const res = await sb.from("headlines").delete().eq("id", id);
+    if (res.error) throw new Error(`deleteHeadline: ${res.error.message}`);
   },
 
   async listRatings(meetingId) {

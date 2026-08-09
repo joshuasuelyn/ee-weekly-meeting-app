@@ -4,14 +4,16 @@ import { useMemo, useState, useTransition } from "react";
 import { SaveDot, useAutosave } from "@/components/autosave";
 import { CarryBadge, Empty, SectionTitle, StatePill } from "@/components/ui";
 import {
+  addHeadline,
   addIssues,
   createIssueFromMetric,
   createIssueFromPriority,
   closeMeeting,
+  deleteHeadline,
   dropIssue,
   setCascadingMessages,
-  setHeadline,
   setMetricValue,
+  updateHeadline,
   setPriorityCheck,
   setPriorityStatus,
   setRating,
@@ -24,6 +26,7 @@ import { COMPLETION_TARGET, MAX_ISSUES_PER_MEETING, splitBrainDump } from "@/lib
 import { formatShortDate } from "@/lib/dates";
 import type {
   RunnerData,
+  RunnerHeadline,
   RunnerIssue,
   RunnerPerson,
   RunnerPriority,
@@ -436,34 +439,89 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
 // 4 · Headlines
 // ---------------------------------------------------------------------------
 
-function HeadlineRow({
-  meetingId,
-  person,
-  initial,
-}: {
-  meetingId: string;
-  person: RunnerPerson;
-  initial: string;
-}) {
-  const { value, update, state } = useAutosave(initial, (v) => setHeadline(meetingId, person.id, v));
+function HeadlineRow({ headline }: { headline: RunnerHeadline }) {
+  const { value, update, state } = useAutosave(headline.text, (v) => updateHeadline(headline.id, v));
+  const [, startTransition] = useTransition();
   const lines = value.split("\n").filter((l) => l.trim() !== "").length;
 
   return (
     <div className="grid gap-2 md:grid-cols-[8rem_1fr] items-start py-3 border-b border-(--color-line) last:border-0">
-      <div className="font-medium md:pt-2">{person.name}</div>
+      <div className="font-medium md:pt-2">{headline.userName}</div>
       <div className="flex items-start gap-2">
         <textarea
           value={value}
           onChange={(e) => update(e.target.value)}
-          rows={Math.min(8, Math.max(2, lines + 1))}
-          placeholder="What other departments need to know"
-          aria-label={`${person.name} headline`}
+          rows={Math.min(10, Math.max(2, lines + 1))}
+          aria-label={`${headline.userName} headline`}
           className="flex-1 px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
         />
-        <span className="w-16 shrink-0 pt-2">
+        <div className="w-16 shrink-0 pt-2 grid gap-1">
           <SaveDot state={state} />
-        </span>
+          <button
+            type="button"
+            onClick={() => startTransition(() => void deleteHeadline(headline.id))}
+            className="text-[0.8rem] text-(--color-muted) underline underline-offset-2 text-left"
+          >
+            Remove
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function HeadlineComposer({ data }: { data: RunnerData }) {
+  const [text, setText] = useState("");
+  const [userId, setUserId] = useState(data.currentUserId);
+  const [pending, startTransition] = useTransition();
+
+  // The person select sits outside the <form> deliberately: React resets fields inside a
+  // form action when it completes, which would bounce the name back to the first in the
+  // list every time. Out here it holds, so adding three for the same person is three
+  // keystrokes rather than three re-selections.
+  return (
+    <div className="mt-4 pt-4 border-t border-(--color-line) flex flex-wrap gap-2 items-start">
+      <select
+        value={userId}
+        onChange={(e) => setUserId(e.target.value)}
+        aria-label="Whose headline"
+        className="px-3 py-2 rounded-xl border border-(--color-line) bg-(--color-panel)"
+      >
+        {data.people.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+
+      <form
+        action={(fd) =>
+          startTransition(async () => {
+            await addHeadline(fd);
+            setText("");
+          })
+        }
+        className="flex-1 min-w-[18rem] flex flex-wrap gap-2 items-start"
+      >
+        <input type="hidden" name="meeting_id" value={data.meeting.id} />
+        <input type="hidden" name="user_id" value={userId} />
+        <textarea
+          name="text"
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="What other departments need to know. As long as it needs to be."
+          aria-label="New headline"
+          className="flex-1 min-w-[14rem] px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
+        />
+        <button
+          type="submit"
+          disabled={text.trim() === "" || pending}
+          className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-40"
+        >
+          Add headline
+        </button>
+      </form>
     </div>
   );
 }
@@ -474,15 +532,22 @@ export function HeadlinesSection({ data }: { data: RunnerData }) {
       <SectionTitle
         title="Headlines"
         hint="Cross-department alignment. Not a status round — friction gets solved in IDS, not reported here."
+        right={
+          <span className="pill bg-(--color-grey-bg) text-(--color-muted)">
+            {data.headlines.length} raised
+          </span>
+        }
       />
-      {data.people.map((p) => (
-        <HeadlineRow
-          key={p.id}
-          meetingId={data.meeting.id}
-          person={p}
-          initial={data.headlines[p.id] ?? ""}
-        />
-      ))}
+
+      {data.headlines.length === 0 ? (
+        <Empty>
+          Nothing raised. Ask the room — nobody owes a headline, and no news is a real answer.
+        </Empty>
+      ) : (
+        data.headlines.map((h) => <HeadlineRow key={h.id} headline={h} />)
+      )}
+
+      <HeadlineComposer data={data} />
     </>
   );
 }

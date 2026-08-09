@@ -85,6 +85,19 @@ Department priorities appear only on their owner's prep screen (§6.1 — no oth
 data on the five-minute screen). The whole board is visible to everyone in the meeting
 runner and on the dashboard.
 
+## A note on Headlines
+
+Headlines is an add-as-needed list rather than one box per person, and entries can run to
+as many lines as they need. This is a deliberate departure from §3's "one line each" and
+from the appendix, which records the cross-department column drifting into personal
+to-dos from Aug 2025 — length was the constraint that prevented it.
+
+What replaces that constraint is the absence of obligation: there is no row per manager,
+so nobody owes a headline and silence is a real answer. A field every manager is expected
+to fill is how `Win For The Month` became blank 34 weeks out of 34; five boxes that must
+be filled would have produced five pieces of filler instead. If Headlines starts running
+long enough to eat IDS time, that is the signal — shorten the section, not the field.
+
 ## What is and isn't here
 
 **Phase 1**, per §8: scorecard lines 1, 2, 3 and 6 live in week 1, weekly and monthly

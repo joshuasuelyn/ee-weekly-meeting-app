@@ -71,6 +71,13 @@ export interface RunnerIssue {
   solveMessage: string;
 }
 
+export interface RunnerHeadline {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+}
+
 export interface RunnerData {
   meeting: Meeting;
   week: number;
@@ -86,7 +93,7 @@ export interface RunnerData {
   allOpenTodos: RunnerTodo[];
   openIssues: RunnerIssue[];
   segues: Record<string, { personal: string; professional: string }>;
-  headlines: Record<string, string>;
+  headlines: RunnerHeadline[];
   ratings: Record<string, number>;
   completion: { pct: number | null; done: number; total: number };
   submittedUserIds: string[];
@@ -201,7 +208,12 @@ export function buildRunnerData(
     segues: Object.fromEntries(
       ctx.segues.map((s) => [s.user_id, { personal: s.personal, professional: s.professional }]),
     ),
-    headlines: Object.fromEntries(ctx.headlines.map((h) => [h.user_id, h.text])),
+    headlines: ctx.headlines.map((h) => ({
+      id: h.id,
+      userId: h.user_id,
+      userName: name(h.user_id),
+      text: h.text,
+    })),
     ratings: Object.fromEntries(ctx.ratings.map((r) => [r.user_id, r.score])),
     completion: ctx.completion,
     submittedUserIds: ctx.submissions.map((s) => s.user_id),

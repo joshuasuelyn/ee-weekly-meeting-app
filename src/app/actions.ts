@@ -301,9 +301,28 @@ export async function setSegue(
   refresh();
 }
 
-export async function setHeadline(meetingId: string, userId: string, text: string) {
+export async function addHeadline(formData: FormData) {
   await requireUser();
-  await getStore().setHeadline(meetingId, userId, text);
+  const text = String(formData.get("text") ?? "").trim();
+  if (!text) return;
+
+  await getStore().addHeadline(
+    String(formData.get("meeting_id") ?? ""),
+    assertSingleOwner(String(formData.get("user_id") ?? "")),
+    text,
+  );
+  refresh();
+}
+
+export async function updateHeadline(id: string, text: string) {
+  await requireUser();
+  await getStore().updateHeadline(id, text);
+  refresh();
+}
+
+export async function deleteHeadline(id: string) {
+  await requireUser();
+  await getStore().deleteHeadline(id);
   refresh();
 }
 

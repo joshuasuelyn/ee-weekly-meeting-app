@@ -145,12 +145,17 @@ create table segues (
   primary key (meeting_id, user_id)
 );
 
+-- Any number per meeting, from anyone, added as needed. Not one row per person: a field
+-- every manager is expected to fill is how a section fills with filler.
 create table headlines (
+  id         uuid primary key default gen_random_uuid(),
   meeting_id uuid not null references meetings(id) on delete cascade,
   user_id    uuid not null references users(id),
   text       text not null default '',
-  primary key (meeting_id, user_id)
+  created_at timestamptz not null default now()
 );
+
+create index headlines_meeting_idx on headlines (meeting_id, created_at);
 
 create table ratings (
   meeting_id uuid not null references meetings(id) on delete cascade,

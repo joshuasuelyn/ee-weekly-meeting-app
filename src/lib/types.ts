@@ -119,10 +119,17 @@ export interface Segue {
   professional: string;
 }
 
+/**
+ * Added as needed rather than one box per person. Nobody owes a headline — silence is a
+ * real answer, and a field every manager is expected to fill is how a section becomes
+ * filler and then gets abandoned.
+ */
 export interface Headline {
+  id: string;
   meeting_id: string;
   user_id: string;
   text: string;
+  created_at: string;
 }
 
 export interface Rating {
@@ -164,7 +171,7 @@ export const SECTIONS = [
   { n: 1, name: "Segue", minutes: 5, blurb: "One personal best + one professional best. One line each." },
   { n: 2, name: "Scorecard", minutes: 5, blurb: "Read the numbers. On or off track. No discussion." },
   { n: 3, name: "Priorities", minutes: 5, blurb: "On or off track only. Off-track drops to Issues." },
-  { n: 4, name: "Headlines", minutes: 5, blurb: "One line each: what other departments need to know." },
+  { n: 4, name: "Headlines", minutes: 5, blurb: "What other departments need to know. Nobody owes one." },
   { n: 5, name: "To-Do Review", minutes: 5, blurb: "Done or not done. No explanations. Target 90%." },
   { n: 6, name: "IDS", minutes: 60, blurb: "Identify · Discuss · Solve. Top 3 issues. Each solve creates a to-do." },
   { n: 7, name: "Conclude", minutes: 5, blurb: "Recap to-dos, cascading messages, rate the meeting 1–10." },
