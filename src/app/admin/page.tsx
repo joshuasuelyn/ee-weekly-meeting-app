@@ -5,7 +5,7 @@ import { formatDate, rolloutWeek } from "@/lib/dates";
 import { metricsMissingTargets } from "@/lib/rules";
 import { today } from "@/lib/queries";
 import { Card, SectionTitle } from "@/components/ui";
-import { saveMetric, saveSettings, saveUser } from "@/app/actions";
+import { MetricRow, PersonRow, SettingsRow } from "./rows";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,13 @@ export default async function AdminPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
+        <p className="text-(--color-muted) mt-1">
+          There is no Save button. Everything on this page saves itself a moment after you stop
+          typing, and says &ldquo;Saved&rdquo; when it has.
+        </p>
+      </div>
 
       {/* R2: grey lines belong on a to-do list until a target is agreed. */}
       {missingTargets.length > 0 || settings.tour_window_weeks === null ? (
@@ -62,40 +68,10 @@ export default async function AdminPage() {
               : `Today is week ${currentWeek}.`
           }
         />
-        <form action={saveSettings} className="flex flex-wrap gap-4 items-end">
-          <div>
-            <label htmlFor="rollout" className="text-[0.85rem] font-medium block mb-1">
-              Week 1 starts (Monday)
-            </label>
-            <input
-              id="rollout"
-              type="date"
-              name="rollout_start_date"
-              defaultValue={settings.rollout_start_date}
-              className="px-3 py-2 rounded-xl border border-(--color-line)"
-            />
-          </div>
-          <div>
-            <label htmlFor="x" className="text-[0.85rem] font-medium block mb-1">
-              X — tour window (weeks)
-            </label>
-            <input
-              id="x"
-              type="number"
-              min={1}
-              name="tour_window_weeks"
-              defaultValue={settings.tour_window_weeks ?? ""}
-              placeholder="not agreed"
-              className="w-40 px-3 py-2 rounded-xl border border-(--color-line)"
-            />
-          </div>
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium"
-          >
-            Save
-          </button>
-        </form>
+        <SettingsRow
+          rolloutStartDate={settings.rollout_start_date}
+          tourWindowWeeks={settings.tour_window_weeks}
+        />
       </Card>
 
       <Card className="p-5">
@@ -105,72 +81,7 @@ export default async function AdminPage() {
         />
         <div className="grid gap-2">
           {metrics.map((m) => (
-            <form
-              key={m.id}
-              action={saveMetric}
-              className="flex flex-wrap gap-2 items-center py-2 border-b border-(--color-line) last:border-0"
-            >
-              <input type="hidden" name="id" value={m.id} />
-              <span className="w-6 text-(--color-muted) tabular-nums text-[0.85rem]">
-                {m.sort_order}
-              </span>
-              <input
-                name="name"
-                defaultValue={m.name}
-                aria-label="Metric name"
-                className="flex-1 min-w-[13rem] px-3 py-2 rounded-xl border border-(--color-line)"
-              />
-              <select
-                name="owner_id"
-                defaultValue={m.owner_id}
-                aria-label="Owner"
-                className="px-3 py-2 rounded-xl border border-(--color-line) bg-(--color-panel)"
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-              <span className="text-(--color-muted) text-[0.9rem] w-6 text-center">
-                {m.direction === "gte" ? "≥" : m.direction === "lte" ? "≤" : "y/n"}
-              </span>
-              <input
-                name="target"
-                defaultValue={m.target ?? ""}
-                placeholder="TBC"
-                aria-label="Target"
-                className="w-24 px-3 py-2 rounded-xl border border-(--color-line) text-right"
-              />
-              <input
-                name="unit"
-                defaultValue={m.unit}
-                placeholder="unit"
-                aria-label="Unit"
-                className="w-20 px-3 py-2 rounded-xl border border-(--color-line)"
-              />
-              <label className="text-[0.85rem] text-(--color-muted)">
-                live W
-                <input
-                  name="live_from_week"
-                  type="number"
-                  min={1}
-                  defaultValue={m.live_from_week}
-                  aria-label="Live from week"
-                  className="w-16 ml-1 px-2 py-2 rounded-xl border border-(--color-line)"
-                />
-              </label>
-              <label className="text-[0.85rem] text-(--color-muted) flex items-center gap-1.5">
-                <input type="checkbox" name="active" defaultChecked={m.active} className="size-4" />
-                active
-              </label>
-              <button
-                type="submit"
-                className="px-3 py-2 rounded-xl border border-(--color-line) font-medium"
-              >
-                Save
-              </button>
-            </form>
+            <MetricRow key={m.id} metric={m} users={users} />
           ))}
         </div>
         <p className="text-[0.85rem] text-(--color-muted) mt-3">
@@ -185,43 +96,7 @@ export default async function AdminPage() {
         />
         <div className="grid gap-2">
           {users.map((u) => (
-            <form
-              key={u.id}
-              action={saveUser}
-              className="flex flex-wrap gap-2 items-center py-2 border-b border-(--color-line) last:border-0"
-            >
-              <input type="hidden" name="id" value={u.id} />
-              <input
-                name="name"
-                defaultValue={u.name}
-                aria-label="Name"
-                className="w-36 px-3 py-2 rounded-xl border border-(--color-line)"
-              />
-              <input
-                name="email"
-                type="email"
-                defaultValue={u.email}
-                aria-label="Email"
-                className="flex-1 min-w-[15rem] px-3 py-2 rounded-xl border border-(--color-line)"
-              />
-              <input
-                name="department"
-                defaultValue={u.department}
-                aria-label="Department"
-                className="w-40 px-3 py-2 rounded-xl border border-(--color-line)"
-              />
-              <span className="text-[0.85rem] text-(--color-muted) w-24 capitalize">{u.role}</span>
-              <label className="text-[0.85rem] text-(--color-muted) flex items-center gap-1.5">
-                <input type="checkbox" name="active" defaultChecked={u.active} className="size-4" />
-                active
-              </label>
-              <button
-                type="submit"
-                className="px-3 py-2 rounded-xl border border-(--color-line) font-medium"
-              >
-                Save
-              </button>
-            </form>
+            <PersonRow key={u.id} person={u} />
           ))}
         </div>
         <p className="text-[0.85rem] text-(--color-muted) mt-3">

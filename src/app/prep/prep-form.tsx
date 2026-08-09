@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { SaveDot, useAutosave } from "@/components/autosave";
+import { SaveDot, SavedFlag, useAutosave, useJustSaved } from "@/components/autosave";
 import { Card, SectionTitle } from "@/components/ui";
 import {
   addHeadline,
@@ -204,6 +204,7 @@ function StepAdder({
   // goal — a Marketing goal can cascade to Nick. Exactly one name, per R3.
   const [stepOwner, setStepOwner] = useState(ownerId);
   const [pending, startTransition] = useTransition();
+  const justSaved = useJustSaved(pending);
 
   // Past the cap the same box keeps working, but what it creates changes: a to-do rather
   // than a step. The work still gets captured — it just stops inflating the priorities
@@ -285,6 +286,7 @@ function StepAdder({
           >
             {atCap ? "Add to-do" : "Add step"}
           </button>
+          <SavedFlag show={justSaved} label={atCap ? "To-do added" : "Step added"} />
         </form>
       </div>
     </div>
@@ -364,6 +366,7 @@ function MonthlySetup({
   urgent: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const justSaved = useJustSaved(pending);
 
   const slot = (scope: "department" | "individual", label: string, placeholder: string) => (
     <form
@@ -390,6 +393,7 @@ function MonthlySetup({
         >
           Set
         </button>
+        <SavedFlag show={justSaved} label="Saved" />
       </div>
     </form>
   );
@@ -397,11 +401,11 @@ function MonthlySetup({
   return (
     <Card className={`p-5 ${urgent ? "border-(--color-amber)" : ""}`}>
       <SectionTitle
-        title={urgent ? `Set ${department}'s month` : `Add a ${department} priority`}
+        title={urgent ? `What should ${department} finish this month?` : `Add another ${department} goal`}
         hint={
           urgent
-            ? `Due ${monthDueDate}. One month, then it's reviewed. You'll break it into weekly steps below, and those can go to anyone.`
-            : `Optional, and you can set several. Due ${monthDueDate}.`
+            ? `One big thing, due ${monthDueDate}. Underneath, you'll split it into small weekly steps — and you can give those steps to anyone on the team, not just yourself.`
+            : `Optional. Add as many as you need. Also due ${monthDueDate}.`
         }
       />
       {slot(
@@ -462,6 +466,7 @@ function AlignmentPrep({
 }) {
   const [text, setText] = useState("");
   const [pending, startTransition] = useTransition();
+  const justSaved = useJustSaved(pending);
 
   return (
     <Card className="p-5">
@@ -508,6 +513,7 @@ function AlignmentPrep({
         >
           Add
         </button>
+        <SavedFlag show={justSaved} label="Added" />
       </form>
     </Card>
   );
@@ -521,6 +527,7 @@ function IssueDump({ meetingDate }: { meetingDate: string }) {
   const [text, setText] = useState("");
   const [added, setAdded] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
+  // No SavedFlag here: this one already reports its own count — "Added 3 issues."
 
   const count = splitBrainDump(text).length;
 

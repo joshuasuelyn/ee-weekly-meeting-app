@@ -22,6 +22,10 @@ export default async function PrepPage() {
         <p className="text-(--color-muted) mt-1">
           Week {prep.week} · five minutes, then close the tab.
         </p>
+        <p className="text-(--color-muted) text-[0.9rem] mt-1">
+          Nothing here needs saving. What you type is kept as you go — the buttons below only add
+          new lines.
+        </p>
       </header>
 
       <PrepForm

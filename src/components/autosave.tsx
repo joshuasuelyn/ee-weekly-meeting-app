@@ -47,6 +47,46 @@ export function useAutosave<T>(initial: T, save: (value: T) => Promise<void>, de
   return { value, update, state };
 }
 
+/**
+ * True for a couple of seconds after `pending` falls back to false — the moment a save
+ * finished. Takes pending as an argument rather than reading it, because the prep screen
+ * dispatches its actions through startTransition, which useFormStatus never sees.
+ */
+export function useJustSaved(pending: boolean, ms = 2500): boolean {
+  const ranOnce = useRef(false);
+  const [justSaved, setJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (pending) {
+      ranOnce.current = true;
+      setJustSaved(false);
+      return;
+    }
+    // Only on the falling edge — otherwise every mount would claim to have just saved.
+    if (!ranOnce.current) return;
+    ranOnce.current = false;
+    setJustSaved(true);
+    const timer = setTimeout(() => setJustSaved(false), ms);
+    return () => clearTimeout(timer);
+  }, [pending, ms]);
+
+  return justSaved;
+}
+
+/** Reserves its space whether or not it is showing, so nothing shifts as it appears. */
+export function SavedFlag({ show, label = "Saved" }: { show: boolean; label?: string }) {
+  return (
+    <span
+      aria-live="polite"
+      className={`text-[0.78rem] text-(--color-on) whitespace-nowrap transition-opacity ${
+        show ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      {show ? label : ""}
+    </span>
+  );
+}
+
 export function SaveDot({ state }: { state: SaveState }) {
   if (state === "idle") return null;
   const label =
