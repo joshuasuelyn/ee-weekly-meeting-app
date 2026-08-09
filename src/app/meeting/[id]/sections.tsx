@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { SaveDot, useAutosave } from "@/components/autosave";
 import { CarryBadge, Empty, SectionTitle, StatePill } from "@/components/ui";
@@ -880,6 +881,8 @@ function RatingRow({
 
 export function ConcludeSection({ data }: { data: RunnerData }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
   const cascading = useAutosave(data.meeting.cascading_messages, (v) =>
     setCascadingMessages(data.meeting.id, v),
   );
@@ -947,13 +950,31 @@ export function ConcludeSection({ data }: { data: RunnerData }) {
           <button
             type="button"
             disabled={pending || data.meeting.status === "closed"}
-            onClick={() => startTransition(() => void closeMeeting(data.meeting.id))}
+            onClick={() => {
+              setError(null);
+              startTransition(async () => {
+                try {
+                  await closeMeeting(data.meeting.id);
+                  // Closing ends the meeting, so staying on the runner reads as nothing
+                  // having happened. The record is the point — go and look at it.
+                  router.push("/history");
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Could not close the meeting.");
+                }
+              });
+            }}
             className="px-5 py-2.5 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-40"
           >
-            {data.meeting.status === "closed" ? "Meeting closed" : "Close the meeting"}
+            {data.meeting.status === "closed"
+              ? "Meeting closed"
+              : pending
+                ? "Closing…"
+                : "Close the meeting"}
           </button>
-          <span className="text-[0.9rem] text-(--color-muted)">
-            Locks the completion % and rating average into the record.
+          <span
+            className={`text-[0.9rem] ${error ? "text-(--color-off)" : "text-(--color-muted)"}`}
+          >
+            {error ?? "Locks the completion % and rating average into the record."}
           </span>
         </div>
       ) : null}
