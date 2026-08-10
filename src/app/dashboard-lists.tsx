@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { addIssues, dropIssue, setPriorityStatus, setTodoStatus } from "@/app/actions";
+import {
+  addIssues,
+  dropIssue,
+  dropTodo,
+  setPriorityStatus,
+  setTodoStatus,
+} from "@/app/actions";
 import { CarryBadge, Empty } from "@/components/ui";
 import { formatShortDate } from "@/lib/dates";
 import {
@@ -14,6 +20,8 @@ export function TodoList({ todos }: { todos: RunnerTodo[] }) {
   const [statuses, setStatuses] = useState<Record<string, string>>(
     Object.fromEntries(todos.map((t) => [t.id, t.status])),
   );
+  // Two taps rather than a dialog: the second press is the confirmation.
+  const [removing, setRemoving] = useState<string | null>(null);
 
   if (todos.length === 0) return <Empty>No open to-dos. Suspicious, but well done.</Empty>;
 
@@ -47,6 +55,24 @@ export function TodoList({ todos }: { todos: RunnerTodo[] }) {
             <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
               {t.ownerName} · {formatShortDate(t.dueDate)}
             </span>
+            {/* For one raised in error or overtaken by events. Something that simply was not
+                done should be left open to carry — that is what the carry badge is for. */}
+            <button
+              type="button"
+              onClick={() => {
+                if (removing === t.id) {
+                  startTransition(() => void dropTodo(t.id));
+                  return;
+                }
+                setRemoving(t.id);
+              }}
+              className={`text-[0.8rem] underline underline-offset-2 whitespace-nowrap ${
+                removing === t.id ? "text-(--color-off) font-medium" : "text-(--color-muted)"
+              }`}
+              title="Take this to-do off the list"
+            >
+              {removing === t.id ? "Remove it?" : "Remove"}
+            </button>
           </li>
         );
       })}

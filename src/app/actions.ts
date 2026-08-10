@@ -340,6 +340,31 @@ export async function createPriorityInsteadOfTodo(formData: FormData) {
   refresh();
 }
 
+/**
+ * Takes a to-do off the list without erasing it.
+ *
+ * Dropped rather than deleted: an issue solved on the strength of this to-do still points
+ * at it, and the export should show that it existed. Note that a dropped to-do leaves the
+ * review list, so it stops counting toward the completion percentage — which is right for
+ * one raised in error, and worth knowing before using it on one that simply was not done.
+ * Something that was not done should be left open to carry, which is what R6 is for.
+ */
+export async function dropTodo(todoId: string) {
+  const user = await requireUser();
+  const store = getStore();
+
+  const todo = (await store.listTodos()).find((t) => t.id === todoId);
+  if (!todo) return;
+
+  // Matches the row-level policy, so a refusal arrives as a message rather than silence.
+  if (user.role !== "facilitator" && todo.owner_id !== user.id) {
+    throw new Error("Only the person who owns this to-do, or the facilitator, can remove it.");
+  }
+
+  await store.updateTodo(todoId, { status: "dropped" });
+  refresh();
+}
+
 export async function setTodoStatus(todoId: string, status: ItemStatus) {
   await requireUser();
   const store = getStore();

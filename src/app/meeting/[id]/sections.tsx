@@ -12,6 +12,7 @@ import {
   closeMeeting,
   deleteHeadline,
   dropIssue,
+  dropTodo,
   setCascadingMessages,
   setMetricValue,
   updateHeadline,
@@ -685,6 +686,8 @@ export function TodoReviewSection({ data }: { data: RunnerData }) {
   const [statuses, setStatuses] = useState<Record<string, string>>(
     Object.fromEntries(data.reviewTodos.map((t) => [t.id, t.status])),
   );
+  // Two taps rather than a dialog: the second press is the confirmation.
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const total = data.reviewTodos.length;
   const done = data.reviewTodos.filter((t) => statuses[t.id] === "done").length;
@@ -745,6 +748,24 @@ export function TodoReviewSection({ data }: { data: RunnerData }) {
                 <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
                   {t.ownerName} · {formatShortDate(t.dueDate)}
                 </span>
+                {/* Removing takes it out of the completion percentage as well as the list,
+                    so this is for one raised in error — not for one that simply was not
+                    done, which should stay open and carry. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (removing === t.id) {
+                      startTransition(() => void dropTodo(t.id));
+                      return;
+                    }
+                    setRemoving(t.id);
+                  }}
+                  className={`text-[0.8rem] underline underline-offset-2 whitespace-nowrap ${
+                    removing === t.id ? "text-(--color-off) font-medium" : "text-(--color-muted)"
+                  }`}
+                >
+                  {removing === t.id ? "Remove it?" : "Remove"}
+                </button>
               </li>
             );
           })}
