@@ -6,6 +6,7 @@ import { getStore } from "@/lib/db";
 import { getOrCreateCurrentMeeting, today } from "@/lib/queries";
 import {
   assertSingleOwner,
+  canAddMonthlyPriority,
   canAddStep,
   canParentPriority,
   canSolveIssue,
@@ -116,6 +117,12 @@ export async function createPriority(formData: FormData) {
     // A step belongs to whatever its monthly priority belongs to — a weekly step toward a
     // department goal is department work, whoever happens to be doing it.
     scope = parent.scope;
+  } else if (horizon === "month") {
+    // The three-a-month ceiling, enforced here as well as in the UI. A fourth priority
+    // never gets cascaded, so refusing it is kinder than letting it sit there unworked.
+    const ownerId = assertSingleOwner(String(formData.get("owner_id") ?? ""));
+    const cap = canAddMonthlyPriority(ownerId, await store.listPriorities());
+    if (!cap.allowed) throw new Error(cap.message);
   }
 
   await store.createPriority({

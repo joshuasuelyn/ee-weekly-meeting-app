@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   assertSingleOwner,
   buildScorecard,
+  canAddMonthlyPriority,
   canAddStep,
   canParentPriority,
+  MAX_MONTHLY_PRIORITIES,
   MAX_STEPS_PER_WEEK,
   canSelectMoreIssues,
   canSolveIssue,
@@ -480,6 +482,38 @@ describe("priorities — scope, and monthly broken into weekly", () => {
       expect(hasStepForWeek("m1", [monthly(), step({ parent_id: "somewhere-else" })], MEETING)).toBe(
         false,
       );
+    });
+  });
+
+  describe("the three-a-month ceiling", () => {
+    const owned = (n: number, ownerId = "u1") =>
+      Array.from({ length: n }, (_, i) => monthly({ id: `m${i}`, owner_id: ownerId }));
+
+    it("allows up to the cap", () => {
+      expect(MAX_MONTHLY_PRIORITIES).toBe(3);
+      expect(canAddMonthlyPriority("u1", owned(0)).allowed).toBe(true);
+      expect(canAddMonthlyPriority("u1", owned(MAX_MONTHLY_PRIORITIES - 1)).allowed).toBe(true);
+    });
+
+    it("blocks the fourth and explains why", () => {
+      const gate = canAddMonthlyPriority("u1", owned(3));
+      expect(gate.allowed).toBe(false);
+      expect(gate.message).toMatch(/cascaded/i);
+    });
+
+    it("counts each person separately — May's three don't block Nick", () => {
+      expect(canAddMonthlyPriority("u2", owned(3, "u1")).allowed).toBe(true);
+    });
+
+    it("frees a slot when one is closed", () => {
+      const three = owned(3);
+      three[0].status = "done";
+      expect(canAddMonthlyPriority("u1", three).allowed).toBe(true);
+    });
+
+    it("does not count weekly steps against the monthly cap", () => {
+      const mixed = [...owned(2), step({ id: "s9" }), step({ id: "s8" })];
+      expect(canAddMonthlyPriority("u1", mixed).allowed).toBe(true);
     });
   });
 

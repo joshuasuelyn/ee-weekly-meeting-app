@@ -149,6 +149,34 @@ export const NO_STEP_PROMPT = "No step this week. What will be visibly done by n
 export const STEP_OVERFLOW_PROMPT =
   "Three steps is the limit for one goal. Anything beyond that is a to-do, not a priority — put it on the to-do list and it gets reviewed done/not-done on Monday.";
 
+/**
+ * Monthly priorities one department may carry at once.
+ *
+ * Three, for the same reason issues cap at three and steps cap at three: a list longer
+ * than that stops being a set of priorities and becomes a description of the job. Each one
+ * has to cascade into weekly steps that the room reviews on Monday, and nobody cascades
+ * six goals in five minutes — so the ceiling is what keeps the cascade real rather than
+ * decorative.
+ */
+export const MAX_MONTHLY_PRIORITIES = 3;
+
+export const MONTHLY_OVERFLOW_PROMPT =
+  "Three is the limit for a month. A fourth would not get cascaded — close or finish one first.";
+
+/** Open monthly priorities owned by this person, whatever their scope. */
+export function monthlyPrioritiesFor(ownerId: string, priorities: Priority[]): Priority[] {
+  return priorities.filter(
+    (p) => p.owner_id === ownerId && p.horizon === "month" && p.status === "open",
+  );
+}
+
+/** The ceiling on monthly priorities. Blocks a fourth and says why. */
+export function canAddMonthlyPriority(ownerId: string, priorities: Priority[]): Gate {
+  return monthlyPrioritiesFor(ownerId, priorities).length >= MAX_MONTHLY_PRIORITIES
+    ? { allowed: false, message: MONTHLY_OVERFLOW_PROMPT }
+    : { allowed: true, message: "" };
+}
+
 export function canParentPriority(parent: Priority, childHorizon: Horizon): Gate {
   if (parent.horizon !== "month") {
     return {

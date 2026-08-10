@@ -17,6 +17,8 @@ import {
 } from "@/app/actions";
 import { nextMonday } from "@/lib/dates";
 import {
+  MAX_MONTHLY_PRIORITIES,
+  MONTHLY_OVERFLOW_PROMPT,
   NO_STEP_PROMPT,
   STEP_OVERFLOW_PROMPT,
   splitBrainDump,
@@ -359,12 +361,14 @@ function MonthlySetup({
   monthDueDate,
   hasDepartment,
   urgent,
+  monthlyCount,
 }: {
   ownerId: string;
   department: string;
   monthDueDate: string;
   hasDepartment: boolean;
   urgent: boolean;
+  monthlyCount: number;
 }) {
   const [pending, startTransition] = useTransition();
   const justSaved = useJustSaved(pending);
@@ -399,26 +403,34 @@ function MonthlySetup({
     </form>
   );
 
+  // "Company priority" for the top level; every other department is named as one.
+  const heading =
+    department.toLowerCase() === "company"
+      ? "Company priority this month"
+      : `${department} Department priority this month`;
+  const full = monthlyCount >= MAX_MONTHLY_PRIORITIES;
+
   return (
-    <Card className={`p-5 ${urgent ? "border-(--color-amber)" : ""}`}>
+    <Card className={`p-5 ${urgent && !full ? "border-(--color-amber)" : ""}`}>
       <SectionTitle
-        title={urgent ? `What should ${department} finish this month?` : `Add another ${department} goal`}
-        hint={
-          urgent
-            ? `One big thing, due ${monthDueDate}. Underneath, you'll split it into small weekly steps — and you can give those steps to anyone on the team, not just yourself.`
-            : `Optional. Add as many as you need. Also due ${monthDueDate}.`
+        title={heading}
+        hint={`Up to ${MAX_MONTHLY_PRIORITIES}, due ${monthDueDate}. Write what you want to see happen — each one gets cascaded to the team as weekly steps, so you can watch it come true week by week.`}
+        right={
+          <span
+            className={`pill ${full ? "bg-(--color-grey-bg) text-(--color-muted)" : "bg-(--color-on-bg) text-(--color-on)"}`}
+          >
+            {monthlyCount} of {MAX_MONTHLY_PRIORITIES}
+          </span>
         }
       />
-      {slot(
-        "department",
-        hasDepartment ? "Another one" : "This month",
-        "Get cost per lead under RM12",
-      )}
-      {hasDepartment ? null : (
-        <p className="text-[0.85rem] text-(--color-muted) mt-3">
-          Two or three is plenty. Every one you set is something you&rsquo;ll be asked about
-          every Monday.
-        </p>
+      {full ? (
+        <p className="text-[0.9rem] text-(--color-muted) py-2">{MONTHLY_OVERFLOW_PROMPT}</p>
+      ) : (
+        slot(
+          "department",
+          hasDepartment ? "Another one" : "This month",
+          "Get cost per lead under RM12",
+        )
       )}
     </Card>
   );
@@ -675,6 +687,8 @@ export function PrepForm({
 
   const blanks = metrics.filter((m) => m.value.trim() === "").length;
   const allGroups = [...grouped.department, ...grouped.individual];
+  // Every open monthly priority of mine counts against the three, whatever its scope.
+  const monthlyCount = allGroups.length;
   const unstepped = allGroups.filter((g) => g.needsStep).length;
   const nothingAtAll = allGroups.length === 0 && grouped.orphanWeeklies.length === 0;
 
@@ -718,6 +732,7 @@ export function PrepForm({
         monthDueDate={monthDueDate}
         hasDepartment={grouped.department.length > 0}
         urgent={needsMonthlySetup}
+        monthlyCount={monthlyCount}
       />
 
       <Card className="p-5">
