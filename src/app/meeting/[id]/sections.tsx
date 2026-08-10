@@ -40,59 +40,111 @@ import { TodoComposer } from "./todo-composer";
 // 1 · Segue
 // ---------------------------------------------------------------------------
 
+/**
+ * One person's segue, written on Friday and read on Monday.
+ *
+ * Shows the answer as text rather than sitting in an input box. Five text fields on a
+ * projected screen invite everyone to retype what they already wrote, which is exactly the
+ * live-composition this was moved to the prep screen to avoid. A box appears only where
+ * there is nothing to read — someone who skipped prep can still be captured in the room.
+ */
 function SegueRow({
   meetingId,
   person,
   initial,
+  canEdit,
 }: {
   meetingId: string;
   person: RunnerPerson;
   initial: { personal: string; professional: string };
+  canEdit: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
   const { value, update, state } = useAutosave(initial, (v) =>
     setSegue(meetingId, person.id, v.personal, v.professional),
   );
 
-  return (
-    <div className="grid gap-2 md:grid-cols-[8rem_1fr_1fr] items-center py-3 border-b border-(--color-line) last:border-0">
-      <div className="font-medium">
-        {person.name}
-        <div className="text-[0.8rem] text-(--color-muted) font-normal">{person.department}</div>
-      </div>
-      <input
-        value={value.personal}
-        onChange={(e) => update({ ...value, personal: e.target.value })}
-        placeholder="Answer to this week's question"
-        aria-label={`${person.name} answer to this week's segue question`}
-        className="px-3 py-2 rounded-xl border border-(--color-line)"
-      />
-      <div className="flex items-center gap-2">
+  const field = (key: "personal" | "professional", label: string, placeholder: string) => {
+    const text = value[key].trim();
+    if (text !== "" && !editing) {
+      return (
+        <div>
+          <div className="text-[0.75rem] uppercase tracking-wide text-(--color-muted)">{label}</div>
+          <p className="text-[1.05rem] leading-snug">{text}</p>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div className="text-[0.75rem] uppercase tracking-wide text-(--color-muted)">{label}</div>
         <input
-          value={value.professional}
-          onChange={(e) => update({ ...value, professional: e.target.value })}
-          placeholder="Best thing at work this week"
-          aria-label={`${person.name} best thing at work this week`}
-          className="flex-1 px-3 py-2 rounded-xl border border-(--color-line)"
+          value={value[key]}
+          onChange={(e) => update({ ...value, [key]: e.target.value })}
+          placeholder={placeholder}
+          aria-label={`${person.name} — ${label}`}
+          className="w-full px-3 py-2 rounded-xl border border-(--color-line)"
         />
-        <span className="w-16 shrink-0">
-          <SaveDot state={state} />
-        </span>
       </div>
+    );
+  };
+
+  const nothingYet = value.personal.trim() === "" && value.professional.trim() === "";
+
+  return (
+    <div className="grid gap-3 md:grid-cols-[9rem_1fr_1fr] md:items-start py-4 border-b border-(--color-line) last:border-0">
+      <div>
+        <div className="font-semibold">{person.name}</div>
+        <div className="text-[0.8rem] text-(--color-muted)">{person.department}</div>
+        {nothingYet ? (
+          <div className="text-[0.78rem] text-(--color-amber) mt-1">didn&rsquo;t prep this</div>
+        ) : canEdit ? (
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            className="text-[0.78rem] text-(--color-muted) underline underline-offset-2 mt-1"
+          >
+            {editing ? "Done" : "Edit"}
+          </button>
+        ) : null}
+        <div className="mt-1">
+          <SaveDot state={state} />
+        </div>
+      </div>
+      {field("personal", "This week's question", "Not answered yet")}
+      {field("professional", "Best thing at work", "Nothing written yet")}
     </div>
   );
 }
 
 export function SegueSection({ data }: { data: RunnerData }) {
   const question = segueQuestionFor(data.meeting.date);
+  const written = data.people.filter((p) => {
+    const s = data.segues[p.id];
+    return s && (s.personal.trim() !== "" || s.professional.trim() !== "");
+  }).length;
 
   return (
     <>
-      <SectionTitle title="Segue" hint="Round the room. One line each, no discussion yet." />
+      <SectionTitle
+        title="Segue"
+        hint="Everyone reads out what they wrote on Friday. Blanks can be filled in now."
+        right={
+          <span
+            className={`pill ${
+              written === data.people.length
+                ? "bg-(--color-on-bg) text-(--color-on)"
+                : "bg-(--color-grey-bg) text-(--color-muted)"
+            }`}
+          >
+            {written} of {data.people.length} prepped
+          </span>
+        }
+      />
       <div className="mb-4 p-4 rounded-xl bg-(--color-grey-bg) border border-(--color-line)">
         <div className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) mb-1">
           This week&rsquo;s question
         </div>
-        <p className="font-medium">{question}</p>
+        <p className="font-medium text-[1.05rem]">{question}</p>
       </div>
       {data.people.map((p) => (
         <SegueRow
@@ -100,6 +152,7 @@ export function SegueSection({ data }: { data: RunnerData }) {
           meetingId={data.meeting.id}
           person={p}
           initial={data.segues[p.id] ?? { personal: "", professional: "" }}
+          canEdit={data.isFacilitator || p.id === data.currentUserId}
         />
       ))}
     </>
