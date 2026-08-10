@@ -331,7 +331,6 @@ function PriorityLine({
   routed,
   indent,
   onChoose,
-  onRoute,
   onDone,
 }: {
   priority: RunnerPriority;
@@ -339,9 +338,10 @@ function PriorityLine({
   routed: boolean;
   indent: boolean;
   onChoose: (next: boolean) => void;
-  onRoute: () => void;
   onDone: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+
   return (
     <div
       className={`flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0 ${
@@ -361,50 +361,73 @@ function PriorityLine({
           ) : null}
         </p>
       </div>
-      <div className="flex gap-2">
-        {/* On Track is already the state, so pressing it only puts one back after a change
-            of mind. The review records exceptions, not confirmations. */}
-        <button
-          type="button"
-          onClick={() => onChoose(true)}
-          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-            onTrack === false
-              ? "border-(--color-line)"
-              : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
-          }`}
-        >
-          {ON_TRACK_LABEL}
-        </button>
-        <button
-          type="button"
-          onClick={() => onChoose(false)}
-          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-            onTrack === false
-              ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-              : "border-(--color-line)"
-          }`}
-        >
-          {NEEDS_HELP_LABEL}
-        </button>
-        {onTrack === false ? (
+      {/* The meeting reads the board rather than filling it in: status is decided during
+          prep, and five people watching one person click through five rows is the slow
+          version of a review. But a meeting that cannot record what was just said is
+          worse, so changing it is one quiet click away. */}
+      {editing ? (
+        <div className="flex flex-wrap gap-1.5 items-center">
           <button
             type="button"
-            disabled={routed}
-            onClick={onRoute}
-            className="px-3 py-1.5 rounded-lg border border-(--color-off) text-(--color-off) font-medium disabled:opacity-40"
+            onClick={() => onChoose(true)}
+            className={`px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border ${
+              onTrack === false
+                ? "border-(--color-line) text-(--color-muted)"
+                : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+            }`}
           >
-            {routed ? "→ Added" : "→ Issue"}
+            {ON_TRACK_LABEL}
           </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={onDone}
-          className="px-3.5 py-1.5 rounded-lg border border-(--color-line) font-medium hover:bg-(--color-grey-bg)"
-          title="Close this priority"
-        >
-          Done
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => onChoose(false)}
+            className={`px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border ${
+              onTrack === false
+                ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
+                : "border-(--color-line) text-(--color-muted)"
+            }`}
+          >
+            {NEEDS_HELP_LABEL}
+          </button>
+          <button
+            type="button"
+            onClick={onDone}
+            className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) text-(--color-muted)"
+            title="Close this priority"
+          >
+            Done
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="text-[0.78rem] text-(--color-muted) underline underline-offset-2 ml-1"
+          >
+            close
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <span
+            className={`pill shrink-0 ${
+              onTrack === false
+                ? "bg-(--color-off-bg) text-(--color-off)"
+                : "bg-(--color-on-bg) text-(--color-on)"
+            }`}
+          >
+            {onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
+          </span>
+          {onTrack === false && routed ? (
+            <span className="text-[0.78rem] text-(--color-off)">→ issue</span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-[0.78rem] text-(--color-muted) underline underline-offset-2"
+          >
+            change
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -453,7 +476,15 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
 
   function choose(id: string, next: boolean) {
     setChecks((c) => ({ ...c, [id]: next }));
-    startTransition(() => void setPriorityCheck(data.meeting.id, id, next));
+    startTransition(async () => {
+      await setPriorityCheck(data.meeting.id, id, next);
+      // Same as on the prep screen: needing help raises the issue itself. The action is
+      // idempotent per priority per meeting, so a change of mind cannot list it twice.
+      if (!next) {
+        setRouted((r) => ({ ...r, [id]: true }));
+        await createIssueFromPriority(id, data.meeting.date);
+      }
+    });
   }
 
   const lineProps = (p: RunnerPriority) => ({
@@ -461,10 +492,6 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
     onTrack: checks[p.id] ?? null,
     routed: Boolean(routed[p.id]),
     onChoose: (next: boolean) => choose(p.id, next),
-    onRoute: () => {
-      setRouted((r) => ({ ...r, [p.id]: true }));
-      startTransition(() => void createIssueFromPriority(p.id, data.meeting.date));
-    },
     onDone: () => startTransition(() => void setPriorityStatus(p.id, "done")),
   });
 
@@ -486,7 +513,7 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
     <>
       <SectionTitle
         title="Priorities"
-        hint="On track unless someone says otherwise. Anything needing help goes to Issues."
+        hint="Read the board. Anything marked Need Help is already on Monday\u2019s issue list."
       />
 
       {data.priorities.length === 0 ? (

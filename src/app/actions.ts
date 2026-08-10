@@ -178,13 +178,18 @@ export async function createIssueFromPriority(priorityId: string, meetingDate: s
   const priority = (await store.listPriorities()).find((p) => p.id === priorityId);
   if (!priority) throw new Error("Unknown priority");
 
+  const text = issueTextForPriority(priority.text);
+
+  // Marking Need Help raises the issue on its own, so a manager who flips the state twice
+  // — or two people doing it on two screens — must not end up with the same issue listed
+  // twice on Monday. Idempotent per priority per meeting.
+  const already = (await store.listIssues()).some(
+    (i) => i.status === "open" && i.raised_date === meetingDate && i.text === text,
+  );
+  if (already) return;
+
   await store.createIssues([
-    {
-      text: issueTextForPriority(priority.text),
-      raised_by_id: user.id,
-      raised_date: meetingDate,
-      source: "priority",
-    },
+    { text, raised_by_id: user.id, raised_date: meetingDate, source: "priority" },
   ]);
   refresh();
 }

@@ -134,7 +134,16 @@ function PriorityRow({
 
   function choose(next: boolean) {
     setOnTrack(next); // optimistic
-    startTransition(() => void setPriorityCheck(meetingId, priority.id, next));
+    startTransition(async () => {
+      await setPriorityCheck(meetingId, priority.id, next);
+      // Saying it needs help and then not raising it is how a board goes stale, and the
+      // extra click was one nobody made. The action is idempotent, so flipping back and
+      // forth cannot list the same issue twice.
+      if (!next) {
+        setRaised(true);
+        await createIssueFromPriority(priority.id, meetingDate);
+      }
+    });
   }
 
   return (
@@ -222,6 +231,9 @@ function PriorityRow({
                 Remove
               </button>
             )}
+            {raised || onTrack === false ? (
+              <span className="text-(--color-off)">· raised as an issue for Monday</span>
+            ) : null}
             {error ? <span className="text-(--color-off)">{error}</span> : null}
           </div>
         )}
@@ -237,67 +249,66 @@ function PriorityRow({
           {onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
         </span>
       ) : (
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* Three controls, in the order the review moves through them. On Track carries
-              no click cost because it is already the state — pressing it only puts one back
-              after a change of mind. */}
-          <button
-            type="button"
-            onClick={() => choose(true)}
-            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-              onTrack === false
-                ? "border-(--color-line) hover:bg-(--color-grey-bg)"
-                : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
-            }`}
-          >
-            {ON_TRACK_LABEL}
-          </button>
-          <button
-            type="button"
-            onClick={() => choose(false)}
-            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-              onTrack === false
-                ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-                : "border-(--color-line) hover:bg-(--color-grey-bg)"
-            }`}
-          >
-            {NEEDS_HELP_LABEL}
-          </button>
-          {/* A step is ticked most weeks, so it goes straight through. Finishing a month's
-              priority is a claim, so the same button asks once before it lands. */}
-          <button
-            type="button"
-            onClick={() => {
-              if (priority.horizon !== "week" && !confirmDone) {
-                setConfirmDone(true);
-                return;
-              }
-              startTransition(() => void setPriorityStatus(priority.id, "done"));
-            }}
-            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-              confirmDone
-                ? "bg-(--color-on) text-white border-(--color-on)"
-                : "border-(--color-line) hover:bg-(--color-grey-bg)"
-            }`}
-            title="Close this priority"
-          >
-            {confirmDone ? "Sure?" : "Done"}
-          </button>
-          {/* Saying it needs help and doing nothing about it is how a board goes stale.
-              The issue is one click away, and lands in Monday's IDS list. */}
-          {onTrack === false ? (
-            <button
-              type="button"
-              disabled={raised}
-              onClick={() => {
-                setRaised(true);
-                startTransition(() => void createIssueFromPriority(priority.id, meetingDate));
-              }}
-              className="px-3 py-1.5 rounded-lg border border-(--color-off) text-(--color-off) font-medium disabled:opacity-40"
-            >
-              {raised ? "Added to issues" : "Raise as an issue"}
-            </button>
-          ) : null}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {confirmDone ? (
+            <>
+              <span className="text-[0.8rem] text-(--color-muted)">Finish this one?</span>
+              <button
+                type="button"
+                onClick={() => startTransition(() => void setPriorityStatus(priority.id, "done"))}
+                className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium bg-(--color-on) text-white"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDone(false)}
+                className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) hover:bg-(--color-grey-bg)"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => choose(true)}
+                className={`px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border ${
+                  onTrack === false
+                    ? "border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
+                    : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+                }`}
+              >
+                {ON_TRACK_LABEL}
+              </button>
+              <button
+                type="button"
+                onClick={() => choose(false)}
+                className={`px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border ${
+                  onTrack === false
+                    ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
+                    : "border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
+                }`}
+              >
+                {NEEDS_HELP_LABEL}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // A step is ticked most weeks; a month's priority is a claim, so it asks.
+                  if (priority.horizon !== "week") {
+                    setConfirmDone(true);
+                    return;
+                  }
+                  startTransition(() => void setPriorityStatus(priority.id, "done"));
+                }}
+                className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
+                title="Close this priority"
+              >
+                Done
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
