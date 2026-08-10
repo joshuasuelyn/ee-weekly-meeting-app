@@ -8,6 +8,7 @@ import {
   setPriorityStatus,
   setTodoStatus,
 } from "@/app/actions";
+import { useVanish } from "@/components/optimistic";
 import { CarryBadge, Empty } from "@/components/ui";
 import { formatShortDate } from "@/lib/dates";
 import {
@@ -15,67 +16,76 @@ import {
   ON_TRACK_LABEL, splitBrainDump } from "@/lib/rules";
 import type { RunnerIssue, RunnerPriority, RunnerTodo } from "./meeting/[id]/data";
 
+function HomeTodoRow({
+  todo,
+  done,
+  onToggle,
+}: {
+  todo: RunnerTodo;
+  done: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  const removing = useVanish();
+  const [confirm, setConfirm] = useState(false);
+  if (removing.gone) return null;
+
+  return (
+    <li className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0">
+      <input
+        id={`home-todo-${todo.id}`}
+        type="checkbox"
+        checked={done}
+        onChange={(e) => onToggle(e.target.checked)}
+        className="size-5 shrink-0 accent-[oklch(0.58_0.15_150)]"
+      />
+      <label
+        htmlFor={`home-todo-${todo.id}`}
+        className={`flex-1 min-w-[12rem] ${done ? "line-through text-(--color-muted)" : ""}`}
+      >
+        {todo.text}
+      </label>
+      <CarryBadge weeks={todo.weeksCarried} level={todo.carry} />
+      <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
+        {todo.ownerName} · {formatShortDate(todo.dueDate)}
+      </span>
+      <button
+        type="button"
+        onClick={() => (confirm ? removing.vanish(() => dropTodo(todo.id)) : setConfirm(true))}
+        className={`text-[0.8rem] underline underline-offset-2 whitespace-nowrap ${
+          confirm ? "text-(--color-off) font-medium" : "text-(--color-muted)"
+        }`}
+        title="Take this to-do off the list"
+      >
+        {confirm ? "Remove it?" : "Remove"}
+      </button>
+      {removing.error ? (
+        <span className="text-[0.8rem] text-(--color-off)">{removing.error}</span>
+      ) : null}
+    </li>
+  );
+}
+
 export function TodoList({ todos }: { todos: RunnerTodo[] }) {
   const [, startTransition] = useTransition();
   const [statuses, setStatuses] = useState<Record<string, string>>(
     Object.fromEntries(todos.map((t) => [t.id, t.status])),
   );
-  // Two taps rather than a dialog: the second press is the confirmation.
-  const [removing, setRemoving] = useState<string | null>(null);
 
   if (todos.length === 0) return <Empty>No open to-dos. Suspicious, but well done.</Empty>;
 
   return (
     <ul>
-      {todos.map((t) => {
-        const done = statuses[t.id] === "done";
-        return (
-          <li
-            key={t.id}
-            className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0"
-          >
-            <input
-              id={`home-todo-${t.id}`}
-              type="checkbox"
-              checked={done}
-              onChange={(e) => {
-                const next = e.target.checked;
-                setStatuses((s) => ({ ...s, [t.id]: next ? "done" : "open" }));
-                startTransition(() => void setTodoStatus(t.id, next ? "done" : "open"));
-              }}
-              className="size-5 shrink-0 accent-[oklch(0.58_0.15_150)]"
-            />
-            <label
-              htmlFor={`home-todo-${t.id}`}
-              className={`flex-1 min-w-[12rem] ${done ? "line-through text-(--color-muted)" : ""}`}
-            >
-              {t.text}
-            </label>
-            <CarryBadge weeks={t.weeksCarried} level={t.carry} />
-            <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
-              {t.ownerName} · {formatShortDate(t.dueDate)}
-            </span>
-            {/* For one raised in error or overtaken by events. Something that simply was not
-                done should be left open to carry — that is what the carry badge is for. */}
-            <button
-              type="button"
-              onClick={() => {
-                if (removing === t.id) {
-                  startTransition(() => void dropTodo(t.id));
-                  return;
-                }
-                setRemoving(t.id);
-              }}
-              className={`text-[0.8rem] underline underline-offset-2 whitespace-nowrap ${
-                removing === t.id ? "text-(--color-off) font-medium" : "text-(--color-muted)"
-              }`}
-              title="Take this to-do off the list"
-            >
-              {removing === t.id ? "Remove it?" : "Remove"}
-            </button>
-          </li>
-        );
-      })}
+      {todos.map((t) => (
+        <HomeTodoRow
+          key={t.id}
+          todo={t}
+          done={statuses[t.id] === "done"}
+          onToggle={(next) => {
+            setStatuses((s) => ({ ...s, [t.id]: next ? "done" : "open" }));
+            startTransition(() => void setTodoStatus(t.id, next ? "done" : "open"));
+          }}
+        />
+      ))}
     </ul>
   );
 }

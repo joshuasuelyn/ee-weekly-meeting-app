@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { SaveDot, SavedFlag, useAutosave, useJustSaved } from "@/components/autosave";
+import { useVanish } from "@/components/optimistic";
 import { Card, SectionTitle } from "@/components/ui";
 import {
   addHeadline,
@@ -132,6 +133,7 @@ function PriorityRow({
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
   const [raised, setRaised] = useState(false);
+  const closing = useVanish();
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -153,6 +155,8 @@ function PriorityRow({
       }
     });
   }
+
+  if (closing.gone) return null;
 
   return (
     <div
@@ -208,16 +212,7 @@ function PriorityRow({
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setError(null);
-                    startTransition(async () => {
-                      try {
-                        await dropPriority(priority.id);
-                      } catch (e) {
-                        setError(e instanceof Error ? e.message : "Could not remove it.");
-                      }
-                    });
-                  }}
+                  onClick={() => closing.vanish(() => dropPriority(priority.id))}
                   className="text-(--color-off) font-medium underline underline-offset-2"
                 >
                   Yes, remove
@@ -245,6 +240,7 @@ function PriorityRow({
             {raised || onTrack === false ? (
               <span className="text-(--color-off)">· raised as an issue for Monday</span>
             ) : null}
+            {closing.error ? <span className="text-(--color-off)">{closing.error}</span> : null}
             {error ? <span className="text-(--color-off)">{error}</span> : null}
           </div>
         )}
@@ -293,7 +289,7 @@ function PriorityRow({
                 disabled={!completable.allowed}
                 onClick={() => {
                   onDone?.(priority);
-                  startTransition(() => void setPriorityStatus(priority.id, "done"));
+                  closing.vanish(() => setPriorityStatus(priority.id, "done"));
                 }}
                 className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg) disabled:opacity-40 disabled:hover:bg-transparent"
                 title={completable.allowed ? "Close this priority" : completable.message}

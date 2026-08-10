@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { SaveDot, useAutosave } from "@/components/autosave";
+import { useVanish } from "@/components/optimistic";
 import { CarryBadge, Empty, SectionTitle, StatePill } from "@/components/ui";
 import {
   addHeadline,
@@ -40,6 +41,7 @@ import type {
   RunnerPerson,
   RunnerPriority,
   RunnerScorecardRow,
+  RunnerTodo,
 } from "./data";
 import { TodoComposer } from "./todo-composer";
 
@@ -681,13 +683,62 @@ export function AlignmentSection({ data }: { data: RunnerData }) {
 // 5 · To-Do Review
 // ---------------------------------------------------------------------------
 
+function ReviewTodoRow({
+  todo,
+  done,
+  onToggle,
+}: {
+  todo: RunnerTodo;
+  done: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  const removing = useVanish();
+  const [confirm, setConfirm] = useState(false);
+  if (removing.gone) return null;
+
+  return (
+    <li className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0">
+      <input
+        id={`todo-${todo.id}`}
+        type="checkbox"
+        checked={done}
+        onChange={(e) => onToggle(e.target.checked)}
+        className="size-5 shrink-0 accent-[oklch(0.58_0.15_150)]"
+      />
+      <label
+        htmlFor={`todo-${todo.id}`}
+        className={`flex-1 min-w-[14rem] ${done ? "line-through text-(--color-muted)" : ""}`}
+      >
+        {todo.text}
+      </label>
+      <CarryBadge weeks={todo.weeksCarried} level={todo.carry} />
+      <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
+        {todo.ownerName} · {formatShortDate(todo.dueDate)}
+      </span>
+      {/* Removing takes it out of the completion percentage as well as the list, so this is
+          for one raised in error — not for one that simply was not done, which should stay
+          open and carry. */}
+      <button
+        type="button"
+        onClick={() => (confirm ? removing.vanish(() => dropTodo(todo.id)) : setConfirm(true))}
+        className={`text-[0.8rem] underline underline-offset-2 whitespace-nowrap ${
+          confirm ? "text-(--color-off) font-medium" : "text-(--color-muted)"
+        }`}
+      >
+        {confirm ? "Remove it?" : "Remove"}
+      </button>
+      {removing.error ? (
+        <span className="text-[0.8rem] text-(--color-off)">{removing.error}</span>
+      ) : null}
+    </li>
+  );
+}
+
 export function TodoReviewSection({ data }: { data: RunnerData }) {
   const [, startTransition] = useTransition();
   const [statuses, setStatuses] = useState<Record<string, string>>(
     Object.fromEntries(data.reviewTodos.map((t) => [t.id, t.status])),
   );
-  // Two taps rather than a dialog: the second press is the confirmation.
-  const [removing, setRemoving] = useState<string | null>(null);
 
   const total = data.reviewTodos.length;
   const done = data.reviewTodos.filter((t) => statuses[t.id] === "done").length;
@@ -724,51 +775,14 @@ export function TodoReviewSection({ data }: { data: RunnerData }) {
         <Empty>Nothing was due by today that wasn&rsquo;t created in this meeting.</Empty>
       ) : (
         <ul>
-          {data.reviewTodos.map((t) => {
-            const isDone = statuses[t.id] === "done";
-            return (
-              <li
-                key={t.id}
-                className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0"
-              >
-                <input
-                  id={`todo-${t.id}`}
-                  type="checkbox"
-                  checked={isDone}
-                  onChange={(e) => toggle(t.id, e.target.checked)}
-                  className="size-5 shrink-0 accent-[oklch(0.58_0.15_150)]"
-                />
-                <label
-                  htmlFor={`todo-${t.id}`}
-                  className={`flex-1 min-w-[14rem] ${isDone ? "line-through text-(--color-muted)" : ""}`}
-                >
-                  {t.text}
-                </label>
-                <CarryBadge weeks={t.weeksCarried} level={t.carry} />
-                <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
-                  {t.ownerName} · {formatShortDate(t.dueDate)}
-                </span>
-                {/* Removing takes it out of the completion percentage as well as the list,
-                    so this is for one raised in error — not for one that simply was not
-                    done, which should stay open and carry. */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (removing === t.id) {
-                      startTransition(() => void dropTodo(t.id));
-                      return;
-                    }
-                    setRemoving(t.id);
-                  }}
-                  className={`text-[0.8rem] underline underline-offset-2 whitespace-nowrap ${
-                    removing === t.id ? "text-(--color-off) font-medium" : "text-(--color-muted)"
-                  }`}
-                >
-                  {removing === t.id ? "Remove it?" : "Remove"}
-                </button>
-              </li>
-            );
-          })}
+          {data.reviewTodos.map((t) => (
+            <ReviewTodoRow
+              key={t.id}
+              todo={t}
+              done={statuses[t.id] === "done"}
+              onToggle={(next) => toggle(t.id, next)}
+            />
+          ))}
         </ul>
       )}
     </>
@@ -783,6 +797,9 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const closing = useVanish();
+
+  if (closing.gone) return null;
 
   return (
     <div className="card p-4 mb-4 border-(--color-accent)/30">
@@ -799,13 +816,7 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
             disabled={pending}
             onClick={() => {
               setError(null);
-              startTransition(async () => {
-                try {
-                  await toggleIssuePick(data.meeting.id, issue.id, false);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Could not put this one back.");
-                }
-              });
+              closing.vanish(() => toggleIssuePick(data.meeting.id, issue.id, false));
             }}
             className="text-[0.85rem] text-(--color-muted) underline underline-offset-2 disabled:opacity-40"
           >
@@ -852,13 +863,7 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
             disabled={!issue.canSolve || pending}
             onClick={() => {
               setError(null);
-              startTransition(async () => {
-                try {
-                  await solveIssue(issue.id, note, data.meeting.id);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Could not solve this issue.");
-                }
-              });
+              closing.vanish(() => solveIssue(issue.id, note, data.meeting.id));
             }}
             className="px-4 py-2 rounded-xl bg-(--color-on) text-white font-medium disabled:opacity-40"
           >
@@ -873,13 +878,7 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
             disabled={pending}
             onClick={() => {
               setError(null);
-              startTransition(async () => {
-                try {
-                  await dropIssue(issue.id);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Could not close this issue.");
-                }
-              });
+              closing.vanish(() => dropIssue(issue.id));
             }}
             className="px-4 py-2 rounded-xl border border-(--color-line) font-medium disabled:opacity-40"
             title="Discussed, and nothing needs doing. Off the list without a to-do."
@@ -890,7 +889,7 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
           <p
             className={`text-[0.9rem] ${issue.canSolve ? "text-(--color-muted)" : "text-(--color-off)"}`}
           >
-            {error ?? issue.solveMessage}
+            {closing.error ?? error ?? issue.solveMessage}
           </p>
         </div>
       </div>
