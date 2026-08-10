@@ -932,6 +932,69 @@ function IssueDumpInline({ meetingDate }: { meetingDate: string }) {
   );
 }
 
+/**
+ * An open issue waiting to be taken.
+ *
+ * Both endings are buttons. "No action needed" was an underlined phrase sitting beside a
+ * bordered "Pick", so it read as a caption rather than a control — the two choices carry
+ * equal weight in the conversation and only one of them looked pressable. Pick is filled
+ * because it is what the room does most; the other is outlined, which says secondary
+ * without saying decorative.
+ */
+function OpenIssueRow({
+  data,
+  issue,
+  atCap,
+}: {
+  data: RunnerData;
+  issue: RunnerIssue;
+  atCap: boolean;
+}) {
+  const [, startTransition] = useTransition();
+  const closing = useVanish();
+  if (closing.gone) return null;
+
+  return (
+    <li className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0">
+      <span
+        className={`pill shrink-0 ${
+          issue.weeksOpen >= 3
+            ? "bg-(--color-off-bg) text-(--color-off)"
+            : issue.weeksOpen >= 1
+              ? "bg-(--color-amber-bg) text-(--color-amber)"
+              : "bg-(--color-grey-bg) text-(--color-muted)"
+        }`}
+      >
+        {issue.weeksOpen}w
+      </span>
+      <span className="flex-1 min-w-[14rem]">{issue.text}</span>
+      <span className="text-[0.85rem] text-(--color-muted)">{issue.raisedByName}</span>
+      <button
+        type="button"
+        disabled={atCap}
+        onClick={() =>
+          startTransition(() => void toggleIssuePick(data.meeting.id, issue.id, true))
+        }
+        className="px-3.5 py-1.5 rounded-lg bg-(--color-ink) text-white font-medium disabled:opacity-30"
+        title={atCap ? "Three issues is the limit for one meeting" : "Take this one"}
+      >
+        Pick
+      </button>
+      <button
+        type="button"
+        onClick={() => closing.vanish(() => dropIssue(issue.id))}
+        className="px-3.5 py-1.5 rounded-lg border border-(--color-line) text-(--color-muted) font-medium hover:bg-(--color-grey-bg)"
+        title="Off the list without a to-do — it wasn't really an issue, or it went away"
+      >
+        No action needed
+      </button>
+      {closing.error ? (
+        <span className="text-[0.8rem] text-(--color-off)">{closing.error}</span>
+      ) : null}
+    </li>
+  );
+}
+
 export function IdsSection({ data }: { data: RunnerData }) {
   const [, startTransition] = useTransition();
   const picked = data.openIssues.filter((i) => i.picked);
@@ -980,43 +1043,7 @@ export function IdsSection({ data }: { data: RunnerData }) {
       ) : (
         <ul>
           {unpicked.map((issue) => (
-            <li
-              key={issue.id}
-              className="flex flex-wrap items-center gap-3 py-2.5 border-b border-(--color-line) last:border-0"
-            >
-              <span
-                className={`pill shrink-0 ${
-                  issue.weeksOpen >= 3
-                    ? "bg-(--color-off-bg) text-(--color-off)"
-                    : issue.weeksOpen >= 1
-                      ? "bg-(--color-amber-bg) text-(--color-amber)"
-                      : "bg-(--color-grey-bg) text-(--color-muted)"
-                }`}
-              >
-                {issue.weeksOpen}w
-              </span>
-              <span className="flex-1 min-w-[14rem]">{issue.text}</span>
-              <span className="text-[0.85rem] text-(--color-muted)">{issue.raisedByName}</span>
-              <button
-                type="button"
-                disabled={atCap}
-                onClick={() =>
-                  startTransition(() => void toggleIssuePick(data.meeting.id, issue.id, true))
-                }
-                className="px-3 py-1.5 rounded-lg border border-(--color-line) font-medium disabled:opacity-30"
-                title={atCap ? "Three issues is the limit for one meeting" : "Take this one"}
-              >
-                Pick
-              </button>
-              <button
-                type="button"
-                onClick={() => startTransition(() => void dropIssue(issue.id))}
-                className="text-[0.85rem] text-(--color-muted) underline underline-offset-2"
-                title="Off the list without a to-do — it wasn't really an issue, or it went away"
-              >
-                No action needed
-              </button>
-            </li>
+            <OpenIssueRow key={issue.id} data={data} issue={issue} atCap={atCap} />
           ))}
         </ul>
       )}

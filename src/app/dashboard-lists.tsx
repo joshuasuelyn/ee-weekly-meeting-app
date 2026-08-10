@@ -118,7 +118,7 @@ export function IssueList({ issues }: { issues: RunnerIssue[] }) {
           <button
             type="button"
             onClick={() => startTransition(() => void dropIssue(i.id))}
-            className="text-[0.85rem] text-(--color-muted) underline underline-offset-2"
+            className="px-3 py-1.5 rounded-lg border border-(--color-line) text-(--color-muted) text-[0.85rem] font-medium hover:bg-(--color-grey-bg)"
           >
             No action needed
           </button>
