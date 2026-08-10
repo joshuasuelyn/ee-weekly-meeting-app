@@ -514,7 +514,9 @@ export async function goToSection(meetingId: string, section: number) {
     current_section: Math.max(1, Math.min(7, section)),
     section_started_at: new Date().toISOString(),
   });
-  refresh();
+  // The runner already moved: every section's content was in the payload it was given, so
+  // there is nothing to fetch. This write only records where the meeting got to.
+  noRefreshNeeded();
 }
 
 export async function setCascadingMessages(meetingId: string, text: string) {

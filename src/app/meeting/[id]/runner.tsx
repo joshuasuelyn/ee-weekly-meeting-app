@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   goToSection,
   reopenMeeting,
@@ -36,7 +36,26 @@ const RENDERERS = [
 
 export function Runner({ data }: { data: RunnerData }) {
   const [pending, startTransition] = useTransition();
-  const current = data.meeting.current_section;
+
+  /**
+   * The section is held locally and the write follows behind.
+   *
+   * Every section's content is already in `data` — the runner is handed the whole meeting
+   * at once — so moving between them needs nothing from the server at all. It was still
+   * waiting for a round trip and a full re-render before the screen changed, which is the
+   * most-pressed control in the meeting paying the highest price.
+   */
+  const [localSection, setLocalSection] = useState<number | null>(null);
+  const [localStartedAt, setLocalStartedAt] = useState<string | null>(null);
+  const current = localSection ?? data.meeting.current_section;
+
+  function go(n: number) {
+    const next = Math.max(1, Math.min(7, n));
+    setLocalSection(next);
+    setLocalStartedAt(new Date().toISOString());
+    startTransition(() => void goToSection(data.meeting.id, next));
+  }
+
   const section = SECTIONS[current - 1];
   const Section = RENDERERS[current - 1];
 
@@ -108,7 +127,7 @@ export function Runner({ data }: { data: RunnerData }) {
               </div>
             ) : null}
             <div className="text-right">
-              <SectionTimer startedAt={data.meeting.section_started_at} minutes={section.minutes} />
+              <SectionTimer startedAt={localStartedAt ?? data.meeting.section_started_at} minutes={section.minutes} />
               <div className="text-[0.85rem] text-(--color-muted)">
                 {section.name} · {section.minutes} min
               </div>
@@ -127,7 +146,7 @@ export function Runner({ data }: { data: RunnerData }) {
                 key={s.n}
                 type="button"
                 disabled={!data.isFacilitator}
-                onClick={() => startTransition(() => void goToSection(data.meeting.id, s.n))}
+                onClick={() => go(s.n)}
                 className={`text-left px-3 py-2.5 rounded-xl border flex items-center gap-2.5 ${
                   active
                     ? "border-(--color-ink) bg-(--color-panel) font-medium"
@@ -164,7 +183,7 @@ export function Runner({ data }: { data: RunnerData }) {
               <button
                 type="button"
                 disabled={current === 1 || pending}
-                onClick={() => startTransition(() => void goToSection(data.meeting.id, current - 1))}
+                onClick={() => go(current - 1)}
                 className="px-4 py-2 rounded-xl border border-(--color-line) font-medium disabled:opacity-30"
               >
                 ← Back
@@ -172,7 +191,7 @@ export function Runner({ data }: { data: RunnerData }) {
               <button
                 type="button"
                 disabled={current === 7 || pending}
-                onClick={() => startTransition(() => void goToSection(data.meeting.id, current + 1))}
+                onClick={() => go(current + 1)}
                 className="px-4 py-2 rounded-xl bg-(--color-ink) text-white font-medium disabled:opacity-30"
               >
                 Next: {SECTIONS[current]?.short ?? "—"} →

@@ -41,9 +41,12 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims rather than getUser: the signature is checked locally against the project's
+  // public keys instead of asking the auth server. This runs on every request in the app —
+  // including every server action and every background data fetch — so a network round trip
+  // here is a tax on each individual click.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   if (!user && !isPublic(request.nextUrl.pathname)) {
     return NextResponse.redirect(new URL("/login", request.url));
