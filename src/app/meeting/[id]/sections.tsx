@@ -843,6 +843,28 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
           >
             Solved
           </button>
+          {/* The other way an issue legitimately ends. Solved means a to-do exists and R5
+              will not let it through without one; plenty of things the room discusses turn
+              out to need nothing, and without this the only exits were an untrue "solved"
+              or leaving it open to age at the top of the list. */}
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setError(null);
+              startTransition(async () => {
+                try {
+                  await dropIssue(issue.id);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Could not close this issue.");
+                }
+              });
+            }}
+            className="px-4 py-2 rounded-xl border border-(--color-line) font-medium disabled:opacity-40"
+            title="Discussed, and nothing needs doing. Off the list without a to-do."
+          >
+            No action needed
+          </button>
           {/* R5 explains itself rather than silently disabling the button. */}
           <p
             className={`text-[0.9rem] ${issue.canSolve ? "text-(--color-muted)" : "text-(--color-off)"}`}
