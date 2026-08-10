@@ -44,7 +44,8 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
         lines.push(`- **${name(s.user_id)}** — ${wins[0]}`);
       } else {
         lines.push(`- **${name(s.user_id)}**`);
-        for (const w of wins) lines.push(`  - ${w}`);
+        // Numbered, matching the runner.
+        wins.forEach((w, i) => lines.push(`  ${i + 1}. ${w}`));
       }
     }
     lines.push("");

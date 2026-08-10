@@ -96,13 +96,15 @@ function SegueAnswer({
         lines.length === 1 ? (
           <p className="text-[1.05rem] leading-snug">{lines[0]}</p>
         ) : (
-          <ul className="list-disc pl-5 grid gap-0.5">
+          // Numbered, not bulleted: read aloud, "three wins" lands differently from a
+          // shapeless list, and the count is visible without anyone counting.
+          <ol className="list-decimal pl-6 grid gap-0.5">
             {lines.map((l, i) => (
               <li key={i} className="text-[1.05rem] leading-snug">
                 {l}
               </li>
             ))}
-          </ul>
+          </ol>
         )
       ) : multiline ? (
         <textarea
