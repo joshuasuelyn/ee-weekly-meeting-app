@@ -8,6 +8,7 @@ import {
   mondayOf,
   nextMeetingDate,
   nextMonday,
+  startOfPreviousMonth,
   toDateString,
 } from "./dates";
 import { segueQuestionFor } from "./segue";
@@ -249,19 +250,24 @@ export async function loadPrep(user: User) {
       .sort((a, b) => b.raised_date.localeCompare(a.raised_date))
       .slice(0, 12),
     /**
-     * Closed this month, newest first. Done is one click with no confirmation, so there has
-     * to be a way back that outlives the undo banner — otherwise a misclick noticed after a
-     * refresh is permanent.
+     * Everything of mine that has left the board, newest first — finished *and* removed.
+     *
+     * Removed used to be excluded, which made the worst case unrecoverable: removing a
+     * monthly goal takes its open weekly steps down with it, correctly, but silently. A step
+     * that vanished that way appeared nowhere, could not be explained, and could not be put
+     * back. Anything that can be taken off the board has to be visible somewhere.
      */
     myClosed: priorities
       .filter(
         (p) =>
           p.owner_id === user.id &&
-          p.status === "done" &&
-          p.due_date >= meeting.date.slice(0, 8) + "01",
+          p.status !== "open" &&
+          // Back to the start of last month: a step can be closed well after its due date,
+          // and a window that only covers this month hides exactly the ones being hunted for.
+          p.due_date >= startOfPreviousMonth(meeting.date),
       )
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .slice(0, 8),
+      .slice(0, 12),
     /**
      * My own segue answers. On the prep screen because being asked cold in the room is
      * what makes the round slow and awkward — people deserve a moment to think of

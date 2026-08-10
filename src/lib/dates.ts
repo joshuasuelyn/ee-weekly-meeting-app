@@ -80,3 +80,12 @@ export function formatDate(s: string): string {
 export function formatShortDate(s: string): string {
   return parseDate(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 }
+
+/** First day of the month before the one containing `date`. */
+export function startOfPreviousMonth(date: string): string {
+  const d = parseDate(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth(); // 0-based
+  const prev = month === 0 ? { y: year - 1, m: 11 } : { y: year, m: month - 1 };
+  return `${prev.y}-${String(prev.m + 1).padStart(2, "0")}-01`;
+}

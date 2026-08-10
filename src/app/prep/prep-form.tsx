@@ -1030,14 +1030,30 @@ export function PrepForm({
         {closed.length > 0 ? (
           <div className="mt-4 pt-3 border-t border-(--color-line)">
             <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
-              Finished this month ({closed.length})
+              Off the board ({closed.length})
             </h3>
+            <p className="text-[0.85rem] text-(--color-muted) mb-2">
+              Finished or removed. Removing a monthly goal takes its weekly steps with it, so
+              a step you can&rsquo;t find is most likely here.
+            </p>
             <div className="grid gap-1">
               {closed.map((p) => (
                 <div key={p.id} className="flex flex-wrap items-center gap-3 text-[0.9rem] py-1">
                   <span className="flex-1 min-w-[12rem] text-(--color-muted) line-through">
                     {p.text}
                   </span>
+                  <span
+                    className={`pill shrink-0 ${
+                      p.status === "done"
+                        ? "bg-(--color-on-bg) text-(--color-on)"
+                        : "bg-(--color-grey-bg) text-(--color-muted)"
+                    }`}
+                  >
+                    {p.status === "done" ? "finished" : "removed"}
+                  </span>
+                  {p.horizon === "week" ? (
+                    <span className="text-[0.8rem] text-(--color-muted)">step</span>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => startTransition(() => void setPriorityStatus(p.id, "open"))}
