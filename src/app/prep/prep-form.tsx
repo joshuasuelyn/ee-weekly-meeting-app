@@ -353,7 +353,10 @@ function StepAdder({
         <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{stepMessage}</p>
       ) : null}
       {atCap ? (
-        <p className="text-[0.85rem] text-(--color-muted) mb-2">{STEP_OVERFLOW_PROMPT}</p>
+        <p className="text-[0.85rem] text-(--color-amber) mb-2">
+          {STEP_OVERFLOW_PROMPT} Anything you add here now goes to your to-do list, so look
+          for it under To-Do Review on Monday rather than under this goal.
+        </p>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
@@ -418,7 +421,10 @@ function StepAdder({
           >
             {atCap ? "Add to-do" : "Add step"}
           </button>
-          <SavedFlag show={justSaved} label={atCap ? "To-do added" : "Step added"} />
+          <SavedFlag
+            show={justSaved}
+            label={atCap ? "Added to your to-dos — not to this goal" : "Step added"}
+          />
         </form>
       </div>
     </div>

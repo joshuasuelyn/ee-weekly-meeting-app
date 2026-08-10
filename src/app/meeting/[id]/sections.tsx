@@ -520,6 +520,14 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
       <SectionTitle
         title="Priorities"
         hint="Read the board. Anything marked Need Help is already on Monday\u2019s issue list."
+        right={
+          // Every open priority appears exactly once below — monthly goals by department or
+          // owner, their steps nested underneath, and anything unattached under "This week
+          // only". The count makes that checkable rather than a claim.
+          <span className="pill bg-(--color-grey-bg) text-(--color-muted)">
+            {data.priorities.length} open
+          </span>
+        }
       />
 
       {data.priorities.length === 0 ? (
