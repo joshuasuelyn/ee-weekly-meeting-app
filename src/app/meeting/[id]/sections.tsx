@@ -362,19 +362,29 @@ function PriorityLine({
         </p>
       </div>
       <div className="flex gap-2">
-        {/* One control, not two. A priority is on track unless someone says otherwise, so
-            the common case costs no clicks and the review only records exceptions. */}
+        {/* On Track is already the state, so pressing it only puts one back after a change
+            of mind. The review records exceptions, not confirmations. */}
         <button
           type="button"
-          onClick={() => onChoose(onTrack === false)}
+          onClick={() => onChoose(true)}
+          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+            onTrack === false
+              ? "border-(--color-line)"
+              : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+          }`}
+        >
+          {ON_TRACK_LABEL}
+        </button>
+        <button
+          type="button"
+          onClick={() => onChoose(false)}
           className={`px-3.5 py-1.5 rounded-lg border font-medium ${
             onTrack === false
               ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-              : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+              : "border-(--color-line)"
           }`}
-          title={onTrack === false ? "Mark it back on track" : "Say this one needs help"}
         >
-          {onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
+          {NEEDS_HELP_LABEL}
         </button>
         {onTrack === false ? (
           <button
@@ -389,7 +399,7 @@ function PriorityLine({
         <button
           type="button"
           onClick={onDone}
-          className="px-3 py-1.5 rounded-lg border border-(--color-line) text-(--color-muted)"
+          className="px-3.5 py-1.5 rounded-lg border border-(--color-line) font-medium hover:bg-(--color-grey-bg)"
           title="Close this priority"
         >
           Done

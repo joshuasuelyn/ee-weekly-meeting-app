@@ -182,43 +182,6 @@ function PriorityRow({
                 Edit
               </button>
             )}
-            {/* Finishing a step is routine and happens weekly, so it goes straight through.
-                Finishing a month's priority is a claim worth a beat of hesitation. */}
-            {editing ? null : priority.horizon === "week" ? (
-              <button
-                type="button"
-                onClick={() => startTransition(() => void setPriorityStatus(priority.id, "done"))}
-                className="text-(--color-on) font-medium underline underline-offset-2"
-              >
-                Done
-              </button>
-            ) : confirmDone ? (
-              <>
-                <span className="text-(--color-muted)">Finished this one?</span>
-                <button
-                  type="button"
-                  onClick={() => startTransition(() => void setPriorityStatus(priority.id, "done"))}
-                  className="text-(--color-on) font-medium underline underline-offset-2"
-                >
-                  Yes, done
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDone(false)}
-                  className="text-(--color-muted) underline underline-offset-2"
-                >
-                  Not yet
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDone(true)}
-                className="text-(--color-on) font-medium underline underline-offset-2"
-              >
-                Done
-              </button>
-            )}
             {confirmRemove ? (
               <>
                 <span className="text-(--color-muted)">
@@ -275,19 +238,50 @@ function PriorityRow({
         </span>
       ) : (
         <div className="flex flex-wrap gap-2 items-center">
-          {/* One control. A priority is on track unless someone says otherwise, so the
-              common case costs no clicks and only the exceptions get recorded. */}
+          {/* Three controls, in the order the review moves through them. On Track carries
+              no click cost because it is already the state — pressing it only puts one back
+              after a change of mind. */}
           <button
             type="button"
-            onClick={() => choose(onTrack === false)}
+            onClick={() => choose(true)}
+            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+              onTrack === false
+                ? "border-(--color-line) hover:bg-(--color-grey-bg)"
+                : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+            }`}
+          >
+            {ON_TRACK_LABEL}
+          </button>
+          <button
+            type="button"
+            onClick={() => choose(false)}
             className={`px-3.5 py-1.5 rounded-lg border font-medium ${
               onTrack === false
                 ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-                : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
+                : "border-(--color-line) hover:bg-(--color-grey-bg)"
             }`}
-            title={onTrack === false ? "Mark it back on track" : "Say this one needs help"}
           >
-            {onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
+            {NEEDS_HELP_LABEL}
+          </button>
+          {/* A step is ticked most weeks, so it goes straight through. Finishing a month's
+              priority is a claim, so the same button asks once before it lands. */}
+          <button
+            type="button"
+            onClick={() => {
+              if (priority.horizon !== "week" && !confirmDone) {
+                setConfirmDone(true);
+                return;
+              }
+              startTransition(() => void setPriorityStatus(priority.id, "done"));
+            }}
+            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
+              confirmDone
+                ? "bg-(--color-on) text-white border-(--color-on)"
+                : "border-(--color-line) hover:bg-(--color-grey-bg)"
+            }`}
+            title="Close this priority"
+          >
+            {confirmDone ? "Sure?" : "Done"}
           </button>
           {/* Saying it needs help and doing nothing about it is how a board goes stale.
               The issue is one click away, and lands in Monday's IDS list. */}

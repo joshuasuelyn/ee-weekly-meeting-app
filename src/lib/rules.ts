@@ -498,8 +498,8 @@ export function issueTextForMetric(metric: Metric, verdict: MetricVerdict): stri
  * a month — and the wording is most of what decides whether that happens. It also names
  * what comes next, since IDS is the room helping.
  */
-export const NEEDS_HELP_LABEL = "Needs help";
-export const ON_TRACK_LABEL = "On track";
+export const NEEDS_HELP_LABEL = "Need Help";
+export const ON_TRACK_LABEL = "On Track";
 
 export function issueTextForPriority(priorityText: string): string {
   return `Priority needs help — ${priorityText}`;
