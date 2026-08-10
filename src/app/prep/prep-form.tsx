@@ -319,6 +319,7 @@ function StepAdder({
   meetingDate,
   urgent,
   atCap,
+  stepMessage,
 }: {
   ownerId: string;
   people: { id: string; name: string }[];
@@ -327,6 +328,8 @@ function StepAdder({
   meetingDate: string;
   urgent: boolean;
   atCap: boolean;
+  /** Names the step already there, when the goal has one that has just come due. */
+  stepMessage: string;
 }) {
   const [text, setText] = useState("");
   // A step is where the goal meets a person, and it need not be the person who owns the
@@ -347,7 +350,7 @@ function StepAdder({
       }`}
     >
       {urgent ? (
-        <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{NO_STEP_PROMPT}</p>
+        <p className="text-[0.9rem] font-medium text-(--color-amber) mb-2">{stepMessage}</p>
       ) : null}
       {atCap ? (
         <p className="text-[0.85rem] text-(--color-muted) mb-2">{STEP_OVERFLOW_PROMPT}</p>
@@ -473,6 +476,7 @@ function PriorityGroupBlock({
         meetingDate={meetingDate}
         urgent={group.needsStep}
         atCap={group.atStepCap}
+        stepMessage={group.stepReason}
       />
     </div>
   );

@@ -27,6 +27,7 @@ import {
   splitBrainDump,
   staleIssues,
   weeksOpen,
+  stepPrompt,
 } from "./rules";
 import {
   endOfMonth,
@@ -579,6 +580,33 @@ describe("priorities — scope, and monthly broken into weekly", () => {
     it("does not count weekly steps against the monthly cap", () => {
       const mixed = [...owned(2), step({ id: "s9" }), step({ id: "s8" })];
       expect(canAddMonthlyPriority("u1", mixed).allowed).toBe(true);
+    });
+  });
+
+  describe("why a step is being asked for", () => {
+    it("says nothing when the week ahead is covered", () => {
+      const board = [monthly(), step({ due_date: "2026-08-17" })];
+      expect(stepPrompt("m1", board, MEETING).needsStep).toBe(false);
+    });
+
+    // The case that reads as a bug: a step due on the meeting day is the one being
+    // reviewed this morning, so the week ahead genuinely has nothing in it.
+    it("names the step that has just come due, rather than claiming there is none", () => {
+      const board = [monthly(), step({ text: "Zoom presentation on BPA", due_date: MEETING })];
+      const prompt = stepPrompt("m1", board, MEETING);
+      expect(prompt.needsStep).toBe(true);
+      expect(prompt.short).toBe("needs next step");
+      expect(prompt.message).toContain("Zoom presentation on BPA");
+      expect(prompt.message).toContain("week ahead");
+    });
+
+    it("does not name a step that was already finished", () => {
+      const board = [monthly(), step({ due_date: MEETING, status: "done" })];
+      expect(stepPrompt("m1", board, MEETING).short).toBe("no step yet");
+    });
+
+    it("says there is none at all when the goal was never broken down", () => {
+      expect(stepPrompt("m1", [monthly()], MEETING).short).toBe("no step yet");
     });
   });
 

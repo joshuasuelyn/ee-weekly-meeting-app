@@ -144,7 +144,8 @@ export const STEP_WINDOW_DAYS = 7;
 export const MAX_STEPS_PER_WEEK = 3;
 
 /** Singular and verifiable on purpose — "what will be done", not "what will I work on". */
-export const NO_STEP_PROMPT = "No step this week. What will be visibly done by next Monday?";
+export const NO_STEP_PROMPT =
+  "Nothing planned for the week ahead. What will be visibly done by next Monday?";
 
 export const STEP_OVERFLOW_PROMPT =
   "Three steps is the limit for one goal. Anything beyond that is a to-do, not a priority — put it on the to-do list and it gets reviewed done/not-done on Monday.";
@@ -283,6 +284,40 @@ export function canAddStep(
     : { allowed: true, message: "" };
 }
 
+/**
+ * Why a monthly priority is being prompted, in words the reader can act on.
+ *
+ * "No step this week" was ambiguous about which week, and read as a flat denial to anyone
+ * looking straight at a step underneath the goal. The commonest case is exactly that: a
+ * step due on the meeting day belongs to the week just finished — it is what is being
+ * reviewed this morning — so the goal genuinely has nothing planned for the week ahead.
+ * Saying so is the difference between a prompt and an apparent bug.
+ */
+export function stepPrompt(
+  parentId: string,
+  priorities: Priority[],
+  meetingDate: string,
+): { needsStep: boolean; short: string; message: string } {
+  if (stepsThisWeek(parentId, priorities, meetingDate).length > 0) {
+    return { needsStep: false, short: "", message: "" };
+  }
+
+  const openBehind = stepsFor(parentId, priorities).filter(
+    (s) => s.status === "open" && s.due_date <= meetingDate,
+  );
+  if (openBehind.length > 0) {
+    return {
+      needsStep: true,
+      short: "needs next step",
+      message:
+        `"${openBehind[0].text}" was this week's step and is still open. ` +
+        "What moves this forward in the week ahead?",
+    };
+  }
+
+  return { needsStep: true, short: "no step yet", message: NO_STEP_PROMPT };
+}
+
 export function monthlyPrioritiesNeedingStep(
   priorities: Priority[],
   meetingDate: string,
@@ -299,6 +334,8 @@ export interface PriorityGroup {
   parent: Priority;
   steps: Priority[];
   needsStep: boolean;
+  /** Why it is being prompted — names the step already there, when there is one. */
+  stepReason: string;
   /** True once this goal has its three steps for the week — further work is a to-do. */
   atStepCap: boolean;
 }
@@ -336,6 +373,7 @@ export function groupPriorities(
       parent,
       steps: stepsFor(parent.id, all),
       needsStep: thisWeek.length === 0,
+      stepReason: stepPrompt(parent.id, all, meetingDate).message,
       atStepCap: thisWeek.length >= MAX_STEPS_PER_WEEK,
     };
   };

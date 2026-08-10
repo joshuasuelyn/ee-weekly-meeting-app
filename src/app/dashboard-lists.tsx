@@ -164,9 +164,9 @@ export function PriorityList({ priorities }: { priorities: RunnerPriority[] }) {
       {p.needsStep ? (
         <span
           className="pill shrink-0 bg-(--color-amber-bg) text-(--color-amber)"
-          title="This month's priority has nothing scheduled to move it forward this week. Add a weekly step on your prep screen."
+          title={p.stepReason}
         >
-          no step this week
+          {p.stepNote}
         </span>
       ) : null}
       <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">

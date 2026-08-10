@@ -4,7 +4,7 @@
 
 import { renderDefinition } from "@/lib/db/seed-data";
 import type { MeetingContext } from "@/lib/queries";
-import { carryLevel, hasStepForWeek, weeksOpen, type CarryLevel, type MetricState } from "@/lib/rules";
+import { carryLevel, stepPrompt, weeksOpen, type CarryLevel, type MetricState } from "@/lib/rules";
 import type { Meeting, PriorityScope, User } from "@/lib/types";
 
 export interface RunnerPerson {
@@ -42,8 +42,12 @@ export interface RunnerPriority {
   onTrack: boolean | null;
   scope: PriorityScope;
   parentId: string | null;
-  /** True for a monthly priority with nothing moving it this week. */
+  /** True for a monthly priority with nothing moving it in the week ahead. */
   needsStep: boolean;
+  /** Two or three words for a pill — "no step yet" or "needs next step". */
+  stepNote: string;
+  /** The full sentence, which names the step already there when there is one. */
+  stepReason: string;
 }
 
 export interface RunnerTodo {
@@ -197,7 +201,11 @@ export function buildRunnerData(
       scope: p.scope,
       parentId: p.parent_id,
       needsStep:
-        p.horizon !== "week" && !hasStepForWeek(p.id, ctx.priorities, ctx.meeting.date),
+        p.horizon !== "week" && stepPrompt(p.id, ctx.priorities, ctx.meeting.date).needsStep,
+      stepNote:
+        p.horizon === "week" ? "" : stepPrompt(p.id, ctx.priorities, ctx.meeting.date).short,
+      stepReason:
+        p.horizon === "week" ? "" : stepPrompt(p.id, ctx.priorities, ctx.meeting.date).message,
     })),
     reviewTodos: ctx.reviewTodos.map(mapTodo),
     newTodos: ctx.todos.filter((t) => t.created_meeting_id === ctx.meeting.id).map(mapTodo),

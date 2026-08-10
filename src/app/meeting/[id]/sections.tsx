@@ -360,7 +360,10 @@ function PriorityLine({
               name matters most on the indented rows, not least. */}
           {` · ${priority.ownerName}`}
           {priority.needsStep ? (
-            <span className="text-(--color-amber) font-medium"> · no step this week</span>
+            <span className="text-(--color-amber) font-medium" title={priority.stepReason}>
+              {" "}
+              · {priority.stepNote}
+            </span>
           ) : null}
         </p>
       </div>
