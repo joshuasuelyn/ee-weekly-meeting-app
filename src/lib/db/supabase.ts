@@ -33,6 +33,19 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }, w
 
 const SETTINGS_ROW = 1;
 
+/**
+ * A write that row-level security refuses does not error — it simply matches no rows and
+ * reports success. The screen then reloads the value it just tried to replace, which reads
+ * as an edit that quietly undid itself. Say so instead.
+ */
+function assertWrote(rows: unknown[] | null, what: string): void {
+  if (rows && rows.length > 0) return;
+  throw new Error(
+    `Could not save this ${what}. The database refused the change — only the facilitator ` +
+      `may edit it, so check you are signed in as the right person.`,
+  );
+}
+
 export const supabaseStore: Store = {
   // --- settings -----------------------------------------------------------
   async getSettings() {
@@ -47,8 +60,9 @@ export const supabaseStore: Store = {
   },
   async updateSettings(patch: Partial<Settings>) {
     const sb = await db();
-    const res = await sb.from("settings").update(patch).eq("id", SETTINGS_ROW);
+    const res = await sb.from("settings").update(patch).eq("id", SETTINGS_ROW).select("id");
     if (res.error) throw new Error(`updateSettings: ${res.error.message}`);
+    assertWrote(res.data, "settings");
   },
 
   // --- users --------------------------------------------------------------
@@ -84,8 +98,9 @@ export const supabaseStore: Store = {
   },
   async upsertUser(user: User) {
     const sb = await db();
-    const res = await sb.from("users").upsert(user);
+    const res = await sb.from("users").upsert(user).select("id");
     if (res.error) throw new Error(`upsertUser: ${res.error.message}`);
+    assertWrote(res.data, "person");
   },
 
   // --- metrics ------------------------------------------------------------
@@ -98,8 +113,9 @@ export const supabaseStore: Store = {
   },
   async updateMetric(id, patch: Partial<Metric>) {
     const sb = await db();
-    const res = await sb.from("metrics").update(patch).eq("id", id);
+    const res = await sb.from("metrics").update(patch).eq("id", id).select("id");
     if (res.error) throw new Error(`updateMetric: ${res.error.message}`);
+    assertWrote(res.data, "scorecard line");
   },
   async listMetricValues(meetingId) {
     const sb = await db();

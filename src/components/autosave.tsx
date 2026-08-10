@@ -18,12 +18,19 @@ export function useAutosave<T>(initial: T, save: (value: T) => Promise<void>, de
 
   // Accept a newer server value only while the field is clean, so a background refresh
   // can't yank a half-typed number out from under the person typing it.
+  //
+  // Keyed on the serialised value, not on `initial` itself. Callers that pass an object
+  // build a fresh one on every render, so an identity check fires constantly — and the
+  // render right after a save completes, when dirty has just been cleared but the server
+  // payload has not arrived yet, would reset the field to the value it just replaced.
+  // That looked exactly like a save that silently failed.
+  const initialKey = JSON.stringify(initial);
   useEffect(() => {
-    if (!dirty.current) {
-      latest.current = initial;
-      setValue(initial);
-    }
-  }, [initial]);
+    if (dirty.current) return;
+    latest.current = initial;
+    setValue(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialKey]);
 
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
