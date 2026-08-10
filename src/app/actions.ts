@@ -27,6 +27,20 @@ function refresh() {
   revalidatePath("/", "layout");
 }
 
+/**
+ * Deliberately does not revalidate.
+ *
+ * Every write used to invalidate the whole layout, so each debounced keystroke and each
+ * On Track click made the server rebuild the entire meeting — fifteen queries — and ship a
+ * fresh render back. These writes are already optimistic on screen: the value the person
+ * just typed is the value they are looking at, and revalidating only replaces it with an
+ * identical copy. What it costs is the pause after every interaction.
+ *
+ * Anything whose result other rows depend on — a completion percentage, a new issue, a
+ * closed meeting — still calls refresh().
+ */
+function noRefreshNeeded() {}
+
 // ---------------------------------------------------------------------------
 // Scorecard
 // ---------------------------------------------------------------------------
@@ -47,7 +61,7 @@ export async function setMetricValue(meetingId: string, metricId: string, value:
     value: trimmed === "" ? null : trimmed,
     enteredBy: user.id,
   });
-  refresh();
+  noRefreshNeeded();
 }
 
 /** R10 — one click from a red row to an issue, nothing retyped. */
@@ -89,7 +103,7 @@ export async function setPriorityCheck(
 ) {
   await requireUser();
   await getStore().setPriorityCheck(meetingId, priorityId, onTrack);
-  refresh();
+  noRefreshNeeded();
 }
 
 export async function createPriority(formData: FormData) {
@@ -360,7 +374,7 @@ export async function setSegue(
 ) {
   await requireUser();
   await getStore().setSegue(meetingId, userId, personal, professional);
-  refresh();
+  noRefreshNeeded();
 }
 
 /** One half of a segue. See Store.setSegueField for why the halves are written apart. */
@@ -372,7 +386,7 @@ export async function setSegueField(
 ) {
   await requireUser();
   await getStore().setSegueField(meetingId, userId, field, value);
-  refresh();
+  noRefreshNeeded();
 }
 
 export async function addHeadline(formData: FormData) {
@@ -403,7 +417,7 @@ export async function deleteHeadline(id: string) {
 export async function setRating(meetingId: string, userId: string, score: number) {
   await requireUser();
   await getStore().setRating(meetingId, userId, Math.max(1, Math.min(10, Math.round(score))));
-  refresh();
+  noRefreshNeeded();
 }
 
 export async function submitPrep(meetingId: string) {
@@ -427,6 +441,46 @@ export async function startMeeting(meetingId: string) {
   refresh();
 }
 
+/**
+ * Puts a running meeting back to not-started.
+ *
+ * For the meeting begun by accident, or the one abandoned when half the room turned out to
+ * be travelling. Everything entered stays exactly where it is — numbers, ticks, issues —
+ * because none of it is wrong, it just is not Monday yet. Distinct from closing, which
+ * locks the completion percentage and the rating into the record.
+ */
+export async function stopMeeting(meetingId: string) {
+  await requireFacilitator();
+  await getStore().updateMeeting(meetingId, {
+    status: "scheduled",
+    current_section: 1,
+    section_started_at: null,
+  });
+  refresh();
+}
+
+/** Back to section 1 with the clock reset. Nothing entered is touched. */
+export async function restartMeeting(meetingId: string) {
+  await requireFacilitator();
+  await getStore().updateMeeting(meetingId, {
+    status: "running",
+    current_section: 1,
+    section_started_at: new Date().toISOString(),
+  });
+  refresh();
+}
+
+/**
+ * Reopens a closed meeting. The completion percentage and rating average were locked in at
+ * close; they are recomputed the next time it closes, so reopening is safe rather than
+ * merely possible.
+ */
+export async function reopenMeeting(meetingId: string) {
+  await requireFacilitator();
+  await getStore().updateMeeting(meetingId, { status: "running" });
+  refresh();
+}
+
 export async function goToSection(meetingId: string, section: number) {
   await requireFacilitator();
   await getStore().updateMeeting(meetingId, {
@@ -439,7 +493,7 @@ export async function goToSection(meetingId: string, section: number) {
 export async function setCascadingMessages(meetingId: string, text: string) {
   await requireFacilitator();
   await getStore().updateMeeting(meetingId, { cascading_messages: text });
-  refresh();
+  noRefreshNeeded();
 }
 
 export async function closeMeeting(meetingId: string) {

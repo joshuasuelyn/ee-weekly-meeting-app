@@ -1,7 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
-import { goToSection, startMeeting } from "@/app/actions";
+import {
+  goToSection,
+  reopenMeeting,
+  restartMeeting,
+  startMeeting,
+  stopMeeting,
+} from "@/app/actions";
 import { Card } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
 import { SECTIONS, TOTAL_MEETING_MINUTES } from "@/lib/types";
@@ -63,10 +69,49 @@ export function Runner({ data }: { data: RunnerData }) {
             Start the meeting
           </button>
         ) : (
-          <div className="text-right">
-            <SectionTimer startedAt={data.meeting.section_started_at} minutes={section.minutes} />
-            <div className="text-[0.85rem] text-(--color-muted)">
-              {section.name} · {section.minutes} min
+          <div className="flex items-center gap-4">
+            {/* Started by mistake, or the room fell apart — both need a way back that is
+                not "close the meeting", which locks the week's numbers into the record. */}
+            {data.isFacilitator ? (
+              <div className="grid gap-1 text-[0.8rem] text-right">
+                {data.meeting.status === "closed" ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => startTransition(() => void reopenMeeting(data.meeting.id))}
+                    className="text-(--color-muted) underline underline-offset-2"
+                  >
+                    Reopen
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => startTransition(() => void restartMeeting(data.meeting.id))}
+                      className="text-(--color-muted) underline underline-offset-2"
+                      title="Back to section 1, clock reset. Nothing entered is lost."
+                    >
+                      Restart
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => startTransition(() => void stopMeeting(data.meeting.id))}
+                      className="text-(--color-muted) underline underline-offset-2"
+                      title="Back to not started. Nothing entered is lost."
+                    >
+                      Stop
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : null}
+            <div className="text-right">
+              <SectionTimer startedAt={data.meeting.section_started_at} minutes={section.minutes} />
+              <div className="text-[0.85rem] text-(--color-muted)">
+                {section.name} · {section.minutes} min
+              </div>
             </div>
           </div>
         )}
