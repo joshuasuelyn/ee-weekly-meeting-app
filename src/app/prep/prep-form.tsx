@@ -110,6 +110,7 @@ function PriorityRow({
   ownerName,
   towards,
   readOnly = false,
+  onDone,
 }: {
   meetingId: string;
   meetingDate: string;
@@ -122,13 +123,14 @@ function PriorityRow({
   towards?: string;
   /** Someone else's step under my goal: visible so I know the goal is covered, but theirs to tick. */
   readOnly?: boolean;
+  /** Told what was just closed, so the screen can offer to put it back. */
+  onDone?: (p: Priority) => void;
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
   const [raised, setRaised] = useState(false);
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  const [confirmDone, setConfirmDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const text = useAutosave(priority.text, (v) => renamePriority(priority.id, v));
 
@@ -250,25 +252,7 @@ function PriorityRow({
         </span>
       ) : (
         <div className="flex flex-wrap gap-1.5 items-center">
-          {confirmDone ? (
-            <>
-              <span className="text-[0.8rem] text-(--color-muted)">Finish this one?</span>
-              <button
-                type="button"
-                onClick={() => startTransition(() => void setPriorityStatus(priority.id, "done"))}
-                className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium bg-(--color-on) text-white"
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDone(false)}
-                className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) hover:bg-(--color-grey-bg)"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
+          {
             <>
               <button
                 type="button"
@@ -292,14 +276,13 @@ function PriorityRow({
               >
                 {NEEDS_HELP_LABEL}
               </button>
+              {/* No confirmation. A dialog in the way of a weekly tick is friction on the
+                  common case; an Undo costs nothing until you need it, and unlike a
+                  confirm it also catches the click you did not mean to make. */}
               <button
                 type="button"
                 onClick={() => {
-                  // A step is ticked most weeks; a month's priority is a claim, so it asks.
-                  if (priority.horizon !== "week") {
-                    setConfirmDone(true);
-                    return;
-                  }
+                  onDone?.(priority);
                   startTransition(() => void setPriorityStatus(priority.id, "done"));
                 }}
                 className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
@@ -308,7 +291,7 @@ function PriorityRow({
                 Done
               </button>
             </>
-          )}
+          }
         </div>
       )}
     </div>
@@ -438,6 +421,7 @@ function PriorityGroupBlock({
   ownerId,
   people,
   checks,
+  onDone,
 }: {
   group: PriorityGroup;
   meetingId: string;
@@ -445,6 +429,7 @@ function PriorityGroupBlock({
   ownerId: string;
   people: { id: string; name: string }[];
   checks: Record<string, boolean | null>;
+  onDone?: (p: Priority) => void;
 }) {
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name;
 
@@ -455,6 +440,7 @@ function PriorityGroupBlock({
         meetingDate={meetingDate}
         priority={group.parent}
         initial={checks[group.parent.id] ?? null}
+        onDone={onDone}
       />
       {group.steps.map((s) => (
         <PriorityRow
@@ -463,6 +449,7 @@ function PriorityGroupBlock({
           meetingDate={meetingDate}
           priority={s}
           initial={checks[s.id] ?? null}
+          onDone={onDone}
           indent
           // Only name the owner when it isn't the person reading the screen.
           ownerName={s.owner_id === ownerId ? undefined : nameOf(s.owner_id)}
@@ -847,7 +834,15 @@ export function PrepForm({
   const unstepped = allGroups.filter((g) => g.needsStep).length;
   const nothingAtAll = allGroups.length === 0 && grouped.orphanWeeklies.length === 0;
 
-  const groupProps = { meetingId, meetingDate, ownerId, people, checks };
+  // What was just closed, so it can be put back. Replaces a confirmation dialog: the
+  // common case costs nothing, and unlike a confirm this also catches a misclick.
+  const [justDone, setJustDone] = useState<Priority | null>(null);
+  const undoDone = (p: Priority) => {
+    setJustDone(null);
+    startTransition(() => void setPriorityStatus(p.id, "open"));
+  };
+
+  const groupProps = { meetingId, meetingDate, ownerId, people, checks, onDone: setJustDone };
 
   return (
     <div className="grid gap-6">
@@ -910,6 +905,28 @@ export function PrepForm({
           </p>
         ) : null}
 
+        {justDone ? (
+          <div className="mb-4 flex flex-wrap items-center gap-3 px-3 py-2 rounded-xl bg-(--color-on-bg) text-[0.9rem]">
+            <span className="text-(--color-on)">
+              &ldquo;{justDone.text}&rdquo; marked done.
+            </span>
+            <button
+              type="button"
+              onClick={() => undoDone(justDone)}
+              className="font-medium underline underline-offset-2 text-(--color-on)"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              onClick={() => setJustDone(null)}
+              className="text-(--color-muted) underline underline-offset-2 ml-auto"
+            >
+              dismiss
+            </button>
+          </div>
+        ) : null}
+
         {grouped.department.length > 0 ? (
           <div className="mb-5">
             <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
@@ -944,6 +961,7 @@ export function PrepForm({
                 meetingDate={meetingDate}
                 priority={p}
                 initial={checks[p.id] ?? null}
+                onDone={setJustDone}
                 // A step cascaded from someone else's monthly goal — say which one, or it
                 // arrives as an orphan task with no reason attached.
                 towards={p.parent_id ? parentTextById[p.parent_id] : undefined}
