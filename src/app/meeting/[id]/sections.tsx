@@ -942,10 +942,23 @@ export function IdsSection({ data }: { data: RunnerData }) {
     <>
       <SectionTitle
         title="IDS — Identify, Discuss, Solve"
-        hint="Oldest first, because the oldest issue is the one being avoided. Pick three. Every solve creates a to-do."
+        hint="Oldest first, because the oldest issue is the one being avoided. Take at most three this week. Every solve creates a to-do."
         right={
-          <span className="pill bg-(--color-grey-bg) text-(--color-muted)">
-            {picked.length} of {MAX_ISSUES_PER_MEETING} picked
+          // "0 of 3 picked" read as "there are 3 issues" — the 3 is the ceiling on how many
+          // may be taken, not a count of anything on screen. Say both numbers instead.
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="pill bg-(--color-grey-bg) text-(--color-muted)">
+              {data.openIssues.length} open
+            </span>
+            <span
+              className={`pill ${
+                picked.length > 0
+                  ? "bg-(--color-accent)/15 text-(--color-ink)"
+                  : "bg-(--color-grey-bg) text-(--color-muted)"
+              }`}
+            >
+              {picked.length} picked · up to {MAX_ISSUES_PER_MEETING}
+            </span>
           </span>
         }
       />
