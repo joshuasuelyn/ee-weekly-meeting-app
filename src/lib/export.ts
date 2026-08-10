@@ -19,18 +19,36 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
   );
   lines.push("");
 
-  // 1 · Segue
+  // 1 · Segue — two rounds, the same two the runner shows.
   lines.push("## Segue");
   lines.push("");
-  // The question travels with the answers, or a page of one-liners about food reads as
-  // a non-sequitur six months later.
-  lines.push(`_${segueQuestionFor(ctx.meeting.date)}_`);
-  lines.push("");
-  if (ctx.segues.length === 0) lines.push("_Not recorded._");
-  for (const s of ctx.segues) {
-    lines.push(`- **${name(s.user_id)}** — ${s.personal || "—"} · at work: ${s.professional || "—"}`);
+  if (ctx.segues.length === 0) {
+    lines.push("_Not recorded._");
+    lines.push("");
+  } else {
+    // The question travels with the answers, or a page of one-liners about food reads as
+    // a non-sequitur six months later.
+    lines.push(`### ${segueQuestionFor(ctx.meeting.date)}`);
+    lines.push("");
+    for (const s of ctx.segues) {
+      if (s.personal.trim()) lines.push(`- **${name(s.user_id)}** — ${s.personal.trim()}`);
+    }
+    lines.push("");
+
+    lines.push("### Best things at work this week");
+    lines.push("");
+    for (const s of ctx.segues) {
+      const wins = s.professional.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      if (wins.length === 0) continue;
+      if (wins.length === 1) {
+        lines.push(`- **${name(s.user_id)}** — ${wins[0]}`);
+      } else {
+        lines.push(`- **${name(s.user_id)}**`);
+        for (const w of wins) lines.push(`  - ${w}`);
+      }
+    }
+    lines.push("");
   }
-  lines.push("");
 
   // 2 · Scorecard
   lines.push("## Scorecard");

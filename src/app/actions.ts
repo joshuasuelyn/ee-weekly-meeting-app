@@ -315,6 +315,18 @@ export async function setSegue(
   refresh();
 }
 
+/** One half of a segue. See Store.setSegueField for why the halves are written apart. */
+export async function setSegueField(
+  meetingId: string,
+  userId: string,
+  field: "personal" | "professional",
+  value: string,
+) {
+  await requireUser();
+  await getStore().setSegueField(meetingId, userId, field, value);
+  refresh();
+}
+
 export async function addHeadline(formData: FormData) {
   await requireUser();
   const text = String(formData.get("text") ?? "").trim();

@@ -108,6 +108,17 @@ export interface Store {
   // --- per-meeting collections -------------------------------------------
   listSegues(meetingId: string): Promise<Segue[]>;
   setSegue(meetingId: string, userId: string, personal: string, professional: string): Promise<void>;
+  /**
+   * Writes one half of a segue without touching the other. The runner shows the question
+   * and the wins as two separate lists, so both halves can be edited on the same screen —
+   * a read-modify-write of the whole row would let the slower save undo the faster one.
+   */
+  setSegueField(
+    meetingId: string,
+    userId: string,
+    field: "personal" | "professional",
+    value: string,
+  ): Promise<void>;
 
   listHeadlines(meetingId: string): Promise<Headline[]>;
   addHeadline(meetingId: string, userId: string, text: string): Promise<Headline>;

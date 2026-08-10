@@ -11,7 +11,7 @@ import {
   deleteHeadline,
   setMetricValue,
   setPriorityCheck,
-  setSegue,
+  setSegueField,
   submitPrep,
   updateHeadline,
 } from "@/app/actions";
@@ -414,7 +414,7 @@ function MonthlySetup({
     <Card className={`p-5 ${urgent && !full ? "border-(--color-amber)" : ""}`}>
       <SectionTitle
         title={heading}
-        hint={`Up to ${MAX_MONTHLY_PRIORITIES}, due ${monthDueDate}. Write what you want to see happen — each one gets cascaded to the team as weekly steps, so you can watch it come true week by week.`}
+        hint="Write what you want to see happen — each one gets cascaded to the team as weekly steps, so you can watch it come true week by week."
         right={
           <span
             className={`pill ${full ? "bg-(--color-grey-bg) text-(--color-muted)" : "bg-(--color-on-bg) text-(--color-on)"}`}
@@ -611,9 +611,16 @@ function SeguePrep({
   question: string;
   initial: { personal: string; professional: string };
 }) {
-  const { value, update, state } = useAutosave(initial, (v) =>
-    setSegue(meetingId, ownerId, v.personal, v.professional),
+  // Two independent saves, one per half. They are shown as one card here, but the runner
+  // splits them into separate lists, so the store writes each column on its own.
+  const answer = useAutosave(initial.personal, (v) =>
+    setSegueField(meetingId, ownerId, "personal", v),
   );
+  const wins = useAutosave(initial.professional, (v) =>
+    setSegueField(meetingId, ownerId, "professional", v),
+  );
+
+  const winCount = wins.value.split("\n").filter((l) => l.trim() !== "").length;
 
   return (
     <Card className="p-5">
@@ -625,26 +632,37 @@ function SeguePrep({
       <label className="block mb-4">
         <div className="text-[0.9rem] font-medium mb-1">{question}</div>
         <input
-          value={value.personal}
-          onChange={(e) => update({ ...value, personal: e.target.value })}
+          value={answer.value}
+          onChange={(e) => answer.update(e.target.value)}
           placeholder="One line is plenty"
           className="w-full px-3 py-2.5 rounded-xl border border-(--color-line)"
         />
+        <div className="mt-1">
+          <SaveDot state={answer.state} />
+        </div>
       </label>
 
       <label className="block">
-        <div className="text-[0.9rem] font-medium mb-1">Best thing at work this week</div>
-        <input
-          value={value.professional}
-          onChange={(e) => update({ ...value, professional: e.target.value })}
-          placeholder="Anything that went well — it doesn't have to be big"
-          className="w-full px-3 py-2.5 rounded-xl border border-(--color-line)"
+        <div className="text-[0.9rem] font-medium mb-1">
+          Best things at work this week
+          {winCount > 0 ? (
+            <span className="text-(--color-muted) font-normal">
+              {" "}
+              · {winCount} win{winCount === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </div>
+        <textarea
+          value={wins.value}
+          onChange={(e) => wins.update(e.target.value)}
+          rows={Math.min(8, Math.max(3, winCount + 1))}
+          placeholder={"One win per line.\nThey don't have to be big — a week usually has more than one."}
+          className="w-full px-3 py-2.5 rounded-xl border border-(--color-line) font-[inherit] resize-y"
         />
+        <div className="mt-1">
+          <SaveDot state={wins.state} />
+        </div>
       </label>
-
-      <div className="mt-2">
-        <SaveDot state={state} />
-      </div>
     </Card>
   );
 }

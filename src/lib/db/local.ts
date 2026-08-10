@@ -287,6 +287,19 @@ export const localStore: Store = {
       } else db.segues.push({ meeting_id: meetingId, user_id: userId, personal, professional } satisfies Segue);
     }),
 
+  setSegueField: (meetingId, userId, field, value) =>
+    mutate((db) => {
+      const existing = db.segues.find((s) => s.meeting_id === meetingId && s.user_id === userId);
+      if (existing) existing[field] = value;
+      else
+        db.segues.push({
+          meeting_id: meetingId,
+          user_id: userId,
+          personal: field === "personal" ? value : "",
+          professional: field === "professional" ? value : "",
+        } satisfies Segue);
+    }),
+
   listHeadlines: (meetingId) =>
     read((db) =>
       structuredClone(db.headlines.filter((h) => h.meeting_id === meetingId)).sort((a, b) =>

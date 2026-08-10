@@ -18,7 +18,7 @@ import {
   setPriorityCheck,
   setPriorityStatus,
   setRating,
-  setSegue,
+  setSegueField,
   setTodoStatus,
   solveIssue,
   toggleIssuePick,
@@ -41,120 +41,142 @@ import { TodoComposer } from "./todo-composer";
 // ---------------------------------------------------------------------------
 
 /**
- * One person's segue, written on Friday and read on Monday.
+ * One person's answer to one half of the segue.
  *
- * Shows the answer as text rather than sitting in an input box. Five text fields on a
- * projected screen invite everyone to retype what they already wrote, which is exactly the
- * live-composition this was moved to the prep screen to avoid. A box appears only where
- * there is nothing to read — someone who skipped prep can still be captured in the room.
+ * Shows what they wrote as text rather than in an input box. Five boxes on a projected
+ * screen invite the room to retype what is already there, which is the live composition
+ * moving this to the prep screen was meant to end. A box appears only where nothing was
+ * written, so whoever skipped prep can still be captured in the room.
  */
-function SegueRow({
+function SegueAnswer({
   meetingId,
   person,
+  field,
   initial,
   canEdit,
+  placeholder,
+  multiline = false,
 }: {
   meetingId: string;
   person: RunnerPerson;
-  initial: { personal: string; professional: string };
+  field: "personal" | "professional";
+  initial: string;
   canEdit: boolean;
+  placeholder: string;
+  multiline?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const { value, update, state } = useAutosave(initial, (v) =>
-    setSegue(meetingId, person.id, v.personal, v.professional),
+    setSegueField(meetingId, person.id, field, v),
   );
 
-  const field = (key: "personal" | "professional", label: string, placeholder: string) => {
-    const text = value[key].trim();
-    if (text !== "" && !editing) {
-      return (
-        <div>
-          <div className="text-[0.75rem] uppercase tracking-wide text-(--color-muted)">{label}</div>
-          <p className="text-[1.05rem] leading-snug">{text}</p>
-        </div>
-      );
-    }
-    return (
-      <div>
-        <div className="text-[0.75rem] uppercase tracking-wide text-(--color-muted)">{label}</div>
-        <input
-          value={value[key]}
-          onChange={(e) => update({ ...value, [key]: e.target.value })}
-          placeholder={placeholder}
-          aria-label={`${person.name} — ${label}`}
-          className="w-full px-3 py-2 rounded-xl border border-(--color-line)"
-        />
-      </div>
-    );
-  };
-
-  const nothingYet = value.personal.trim() === "" && value.professional.trim() === "";
+  const lines = value.split("\n").map((l) => l.trim()).filter(Boolean);
+  const written = lines.length > 0;
 
   return (
-    <div className="grid gap-3 md:grid-cols-[9rem_1fr_1fr] md:items-start py-4 border-b border-(--color-line) last:border-0">
+    <div className="grid gap-2 md:grid-cols-[9rem_1fr] md:items-baseline py-3 border-b border-(--color-line) last:border-0">
       <div>
-        <div className="font-semibold">{person.name}</div>
-        <div className="text-[0.8rem] text-(--color-muted)">{person.department}</div>
-        {nothingYet ? (
-          <div className="text-[0.78rem] text-(--color-amber) mt-1">didn&rsquo;t prep this</div>
-        ) : canEdit ? (
+        <span className="font-semibold">{person.name}</span>
+        {written && canEdit ? (
           <button
             type="button"
             onClick={() => setEditing((e) => !e)}
-            className="text-[0.78rem] text-(--color-muted) underline underline-offset-2 mt-1"
+            className="ml-2 text-[0.75rem] text-(--color-muted) underline underline-offset-2"
           >
-            {editing ? "Done" : "Edit"}
+            {editing ? "done" : "edit"}
           </button>
         ) : null}
-        <div className="mt-1">
+        <div className="mt-0.5">
           <SaveDot state={state} />
         </div>
       </div>
-      {field("personal", "This week's question", "Not answered yet")}
-      {field("professional", "Best thing at work", "Nothing written yet")}
+
+      {written && !editing ? (
+        // A single line reads better as a sentence; several are a list of wins.
+        lines.length === 1 ? (
+          <p className="text-[1.05rem] leading-snug">{lines[0]}</p>
+        ) : (
+          <ul className="list-disc pl-5 grid gap-0.5">
+            {lines.map((l, i) => (
+              <li key={i} className="text-[1.05rem] leading-snug">
+                {l}
+              </li>
+            ))}
+          </ul>
+        )
+      ) : multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => update(e.target.value)}
+          rows={Math.max(2, lines.length + 1)}
+          placeholder={placeholder}
+          aria-label={`${person.name} — best things at work this week`}
+          className="w-full px-3 py-2 rounded-xl border border-(--color-line) font-[inherit] resize-y"
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={(e) => update(e.target.value)}
+          placeholder={placeholder}
+          aria-label={`${person.name} — this week's question`}
+          className="w-full px-3 py-2 rounded-xl border border-(--color-line)"
+        />
+      )}
     </div>
   );
 }
 
 export function SegueSection({ data }: { data: RunnerData }) {
   const question = segueQuestionFor(data.meeting.date);
-  const written = data.people.filter((p) => {
-    const s = data.segues[p.id];
-    return s && (s.personal.trim() !== "" || s.professional.trim() !== "");
-  }).length;
+  const seg = (id: string) => data.segues[id] ?? { personal: "", professional: "" };
+
+  const counted = (field: "personal" | "professional") =>
+    data.people.filter((p) => seg(p.id)[field].trim() !== "").length;
+
+  const block = (
+    title: string,
+    subtitle: string | null,
+    field: "personal" | "professional",
+    placeholder: string,
+    multiline: boolean,
+  ) => (
+    <section className="mb-8 last:mb-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+        <h3 className="text-[1.1rem] font-semibold">{title}</h3>
+        <span
+          className={`pill ${
+            counted(field) === data.people.length
+              ? "bg-(--color-on-bg) text-(--color-on)"
+              : "bg-(--color-grey-bg) text-(--color-muted)"
+          }`}
+        >
+          {counted(field)} of {data.people.length}
+        </span>
+      </div>
+      {subtitle ? <p className="text-(--color-muted) mb-3">{subtitle}</p> : null}
+      {data.people.map((p) => (
+        <SegueAnswer
+          key={p.id}
+          meetingId={data.meeting.id}
+          person={p}
+          field={field}
+          initial={seg(p.id)[field]}
+          canEdit={data.isFacilitator || p.id === data.currentUserId}
+          placeholder={placeholder}
+          multiline={multiline}
+        />
+      ))}
+    </section>
+  );
 
   return (
     <>
       <SectionTitle
         title="Segue"
-        hint="Everyone reads out what they wrote on Friday. Blanks can be filled in now."
-        right={
-          <span
-            className={`pill ${
-              written === data.people.length
-                ? "bg-(--color-on-bg) text-(--color-on)"
-                : "bg-(--color-grey-bg) text-(--color-muted)"
-            }`}
-          >
-            {written} of {data.people.length} prepped
-          </span>
-        }
+        hint="Round the room twice — the question first, then the wins. Blanks can be filled in now."
       />
-      <div className="mb-4 p-4 rounded-xl bg-(--color-grey-bg) border border-(--color-line)">
-        <div className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) mb-1">
-          This week&rsquo;s question
-        </div>
-        <p className="font-medium text-[1.05rem]">{question}</p>
-      </div>
-      {data.people.map((p) => (
-        <SegueRow
-          key={p.id}
-          meetingId={data.meeting.id}
-          person={p}
-          initial={data.segues[p.id] ?? { personal: "", professional: "" }}
-          canEdit={data.isFacilitator || p.id === data.currentUserId}
-        />
-      ))}
+      {block("This week's question", question, "personal", "Not answered yet", false)}
+      {block("Best things at work this week", null, "professional", "Nothing written yet", true)}
     </>
   );
 }

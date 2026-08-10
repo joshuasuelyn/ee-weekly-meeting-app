@@ -292,6 +292,27 @@ export const supabaseStore: Store = {
       );
     if (res.error) throw new Error(`setSegue: ${res.error.message}`);
   },
+  async setSegueField(meetingId, userId, field, value) {
+    const sb = await db();
+    // Update the one column first; only insert when there is no row yet. An upsert would
+    // need the other column's value and would write a stale copy of it.
+    const upd = await sb
+      .from("segues")
+      .update({ [field]: value })
+      .eq("meeting_id", meetingId)
+      .eq("user_id", userId)
+      .select("user_id");
+    if (upd.error) throw new Error(`setSegueField: ${upd.error.message}`);
+    if (upd.data && upd.data.length > 0) return;
+
+    const ins = await sb.from("segues").insert({
+      meeting_id: meetingId,
+      user_id: userId,
+      personal: field === "personal" ? value : "",
+      professional: field === "professional" ? value : "",
+    });
+    if (ins.error) throw new Error(`setSegueField: ${ins.error.message}`);
+  },
 
   async listHeadlines(meetingId) {
     const sb = await db();
