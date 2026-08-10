@@ -8,6 +8,7 @@ import {
   assertSingleOwner,
   canAddMonthlyPriority,
   canAddStep,
+  canCompletePriority,
   canParentPriority,
   canSolveIssue,
   completionFor,
@@ -139,7 +140,20 @@ export async function createPriority(formData: FormData) {
 
 export async function setPriorityStatus(priorityId: string, status: ItemStatus) {
   await requireUser();
-  await getStore().updatePriority(priorityId, { status });
+  const store = getStore();
+
+  // Closing a monthly priority over the top of its open steps strands them. Enforced here
+  // as well as in the UI, so the rule holds however the call arrives.
+  if (status === "done") {
+    const all = await store.listPriorities();
+    const target = all.find((p) => p.id === priorityId);
+    if (target) {
+      const gate = canCompletePriority(target, all);
+      if (!gate.allowed) throw new Error(gate.message);
+    }
+  }
+
+  await store.updatePriority(priorityId, { status });
   refresh();
 }
 

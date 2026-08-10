@@ -52,6 +52,7 @@ export default async function PrepPage() {
         people={prep.people}
         parentTextById={prep.parentTextById}
         alignment={prep.myAlignment}
+        closed={prep.myClosed}
         segue={prep.mySegue}
         segueQuestion={prep.segueQuestion}
       />

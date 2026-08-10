@@ -214,6 +214,20 @@ export async function loadPrep(user: User) {
     })),
     myPriorities,
     /**
+     * Closed this month, newest first. Done is one click with no confirmation, so there has
+     * to be a way back that outlives the undo banner — otherwise a misclick noticed after a
+     * refresh is permanent.
+     */
+    myClosed: priorities
+      .filter(
+        (p) =>
+          p.owner_id === user.id &&
+          p.status === "done" &&
+          p.due_date >= meeting.date.slice(0, 8) + "01",
+      )
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 8),
+    /**
      * My own segue answers. On the prep screen because being asked cold in the room is
      * what makes the round slow and awkward — people deserve a moment to think of
      * something worth saying. It is still spoken aloud on Monday; this only means nobody

@@ -196,6 +196,31 @@ export function priorityIdsToDrop(priorityId: string, priorities: Priority[]): s
   ];
 }
 
+/**
+ * Whether a priority may be marked done.
+ *
+ * A monthly priority is closed by finishing its steps, not instead of them. Closing it
+ * while steps are still open strands them: they lose the heading they were listed under
+ * and reappear as work toward a goal nobody can see. Finish or remove the steps and the
+ * goal closes freely — which is also the honest order, since a month's priority is not
+ * finished while the work under it is still outstanding.
+ */
+export function canCompletePriority(priority: Priority, priorities: Priority[]): Gate {
+  if (priority.horizon !== "month") return { allowed: true, message: "" };
+
+  const openSteps = priorities.filter(
+    (p) => p.parent_id === priority.id && p.status === "open",
+  ).length;
+  if (openSteps === 0) return { allowed: true, message: "" };
+
+  return {
+    allowed: false,
+    message:
+      `${openSteps} weekly step${openSteps === 1 ? "" : "s"} still open underneath. ` +
+      `Finish or remove ${openSteps === 1 ? "it" : "them"} first, or use Remove to take the whole thing off the board.`,
+  };
+}
+
 export function canParentPriority(parent: Priority, childHorizon: Horizon): Gate {
   if (parent.horizon !== "month") {
     return {

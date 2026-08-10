@@ -23,6 +23,7 @@ import { nextMonday } from "@/lib/dates";
 import {
   MAX_MONTHLY_PRIORITIES,
   MONTHLY_OVERFLOW_PROMPT,
+  canCompletePriority,
   NEEDS_HELP_LABEL,
   ON_TRACK_LABEL,
   NO_STEP_PROMPT,
@@ -111,6 +112,7 @@ function PriorityRow({
   towards,
   readOnly = false,
   onDone,
+  siblings,
 }: {
   meetingId: string;
   meetingDate: string;
@@ -125,6 +127,8 @@ function PriorityRow({
   readOnly?: boolean;
   /** Told what was just closed, so the screen can offer to put it back. */
   onDone?: (p: Priority) => void;
+  /** The board this row sits on — needed to see whether steps are still open underneath. */
+  siblings?: Priority[];
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
   const [raised, setRaised] = useState(false);
@@ -133,6 +137,8 @@ function PriorityRow({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const text = useAutosave(priority.text, (v) => renamePriority(priority.id, v));
+  // A month's goal closes by finishing its steps, not instead of them.
+  const completable = canCompletePriority(priority, siblings ?? [priority]);
 
   function choose(next: boolean) {
     setOnTrack(next); // optimistic
@@ -233,6 +239,9 @@ function PriorityRow({
                 Remove
               </button>
             )}
+            {!completable.allowed ? (
+              <span className="text-(--color-muted)">{completable.message}</span>
+            ) : null}
             {raised || onTrack === false ? (
               <span className="text-(--color-off)">· raised as an issue for Monday</span>
             ) : null}
@@ -281,12 +290,13 @@ function PriorityRow({
                   confirm it also catches the click you did not mean to make. */}
               <button
                 type="button"
+                disabled={!completable.allowed}
                 onClick={() => {
                   onDone?.(priority);
                   startTransition(() => void setPriorityStatus(priority.id, "done"));
                 }}
-                className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
-                title="Close this priority"
+                className="px-2.5 py-1 rounded-lg text-[0.82rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg) disabled:opacity-40 disabled:hover:bg-transparent"
+                title={completable.allowed ? "Close this priority" : completable.message}
               >
                 Done
               </button>
@@ -441,6 +451,7 @@ function PriorityGroupBlock({
         priority={group.parent}
         initial={checks[group.parent.id] ?? null}
         onDone={onDone}
+        siblings={[group.parent, ...group.steps]}
       />
       {group.steps.map((s) => (
         <PriorityRow
@@ -805,6 +816,7 @@ export function PrepForm({
   people,
   parentTextById,
   alignment,
+  closed,
   segue,
   segueQuestion,
 }: {
@@ -821,6 +833,7 @@ export function PrepForm({
   people: { id: string; name: string }[];
   parentTextById: Record<string, string>;
   alignment: { id: string; text: string }[];
+  closed: Priority[];
   segue: { personal: string; professional: string };
   segueQuestion: string;
 }) {
@@ -947,6 +960,30 @@ export function PrepForm({
               <PriorityGroupBlock key={g.parent.id} group={g} {...groupProps} />
             ))}
           </div>
+        ) : null}
+
+        {closed.length > 0 ? (
+          <details className="mt-4 pt-3 border-t border-(--color-line)">
+            <summary className="text-[0.85rem] text-(--color-muted) cursor-pointer">
+              Closed this month ({closed.length}) — reopen if something was ticked by mistake
+            </summary>
+            <div className="mt-2 grid gap-1">
+              {closed.map((p) => (
+                <div key={p.id} className="flex flex-wrap items-center gap-3 text-[0.9rem]">
+                  <span className="flex-1 min-w-[12rem] text-(--color-muted) line-through">
+                    {p.text}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startTransition(() => void setPriorityStatus(p.id, "open"))}
+                    className="text-(--color-muted) underline underline-offset-2"
+                  >
+                    Reopen
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
         ) : null}
 
         {grouped.orphanWeeklies.length > 0 ? (

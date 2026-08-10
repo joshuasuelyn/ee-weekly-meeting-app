@@ -4,6 +4,7 @@ import {
   buildScorecard,
   canAddMonthlyPriority,
   canAddStep,
+  canCompletePriority,
   canParentPriority,
   MAX_MONTHLY_PRIORITIES,
   MAX_STEPS_PER_WEEK,
@@ -483,6 +484,37 @@ describe("priorities — scope, and monthly broken into weekly", () => {
       expect(hasStepForWeek("m1", [monthly(), step({ parent_id: "somewhere-else" })], MEETING)).toBe(
         false,
       );
+    });
+  });
+
+  describe("finishing a priority", () => {
+    it("lets a weekly step finish whenever", () => {
+      expect(canCompletePriority(step(), [monthly(), step()]).allowed).toBe(true);
+    });
+
+    it("refuses a monthly goal while steps are still open underneath", () => {
+      const gate = canCompletePriority(monthly(), [monthly(), step({ id: "s1" })]);
+      expect(gate.allowed).toBe(false);
+      expect(gate.message).toMatch(/still open/i);
+    });
+
+    it("counts the open steps in the message", () => {
+      const board = [monthly(), step({ id: "s1" }), step({ id: "s2" })];
+      expect(canCompletePriority(monthly(), board).message).toMatch(/2 weekly steps/i);
+    });
+
+    it("allows it once every step is finished or removed", () => {
+      const board = [monthly(), step({ id: "s1", status: "done" }), step({ id: "s2", status: "dropped" })];
+      expect(canCompletePriority(monthly(), board).allowed).toBe(true);
+    });
+
+    it("ignores steps belonging to a different goal", () => {
+      const board = [monthly(), step({ id: "s1", parent_id: "elsewhere" })];
+      expect(canCompletePriority(monthly(), board).allowed).toBe(true);
+    });
+
+    it("allows a monthly goal that was never broken down", () => {
+      expect(canCompletePriority(monthly(), [monthly()]).allowed).toBe(true);
     });
   });
 
