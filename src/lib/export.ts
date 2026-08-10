@@ -85,10 +85,8 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
   lines.push("");
   if (ctx.openPriorities.length === 0) lines.push("_None open._");
 
-  const mark = (id: string) => {
-    const check = ctx.priorityChecks.get(id);
-    return check === true ? "on track" : check === false ? "**off track**" : "not reviewed";
-  };
+  // Unset means on track: the review only records exceptions, so silence is agreement.
+  const mark = (id: string) => (ctx.priorityChecks.get(id) === false ? "**needs help**" : "on track");
   const grouped = groupPriorities(ctx.openPriorities, ctx.meeting.date);
 
   const writeGroups = (heading: string, groups: typeof grouped.department) => {

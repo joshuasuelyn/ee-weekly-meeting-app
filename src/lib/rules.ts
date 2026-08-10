@@ -489,8 +489,20 @@ export function issueTextForMetric(metric: Metric, verdict: MetricVerdict): stri
   return `${metric.name} off track — ${verdict.reason}`;
 }
 
+/**
+ * The two states a priority can be in during the review.
+ *
+ * "Needs help" rather than "off track": the same fact, but a sentence somebody can say out
+ * loud without it sounding like a verdict on them. Under-reporting is the failure mode a
+ * weekly review actually has — a manager who is behind and says "on track" costs the room
+ * a month — and the wording is most of what decides whether that happens. It also names
+ * what comes next, since IDS is the room helping.
+ */
+export const NEEDS_HELP_LABEL = "Needs help";
+export const ON_TRACK_LABEL = "On track";
+
 export function issueTextForPriority(priorityText: string): string {
-  return `Priority off track — ${priorityText}`;
+  return `Priority needs help — ${priorityText}`;
 }
 
 // ---------------------------------------------------------------------------

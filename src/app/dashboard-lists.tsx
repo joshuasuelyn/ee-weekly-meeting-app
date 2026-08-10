@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { addIssues, dropIssue, setPriorityStatus, setTodoStatus } from "@/app/actions";
 import { CarryBadge, Empty } from "@/components/ui";
 import { formatShortDate } from "@/lib/dates";
-import { splitBrainDump } from "@/lib/rules";
+import {
+  NEEDS_HELP_LABEL,
+  ON_TRACK_LABEL, splitBrainDump } from "@/lib/rules";
 import type { RunnerIssue, RunnerPriority, RunnerTodo } from "./meeting/[id]/data";
 
 export function TodoList({ todos }: { todos: RunnerTodo[] }) {
@@ -107,16 +109,15 @@ export function PriorityList({ priorities }: { priorities: RunnerPriority[] }) {
         indent ? "pl-4 ml-1 border-l-2 border-l-(--color-line)" : ""
       }`}
     >
+      {/* Unset means on track — the review records exceptions, not confirmations. */}
       <span
         className={`pill shrink-0 ${
-          p.onTrack === true
-            ? "bg-(--color-on-bg) text-(--color-on)"
-            : p.onTrack === false
-              ? "bg-(--color-off-bg) text-(--color-off)"
-              : "bg-(--color-grey-bg) text-(--color-muted)"
+          p.onTrack === false
+            ? "bg-(--color-off-bg) text-(--color-off)"
+            : "bg-(--color-on-bg) text-(--color-on)"
         }`}
       >
-        {p.onTrack === true ? "on" : p.onTrack === false ? "off" : "unreviewed"}
+        {p.onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
       </span>
       {p.scope === "department" && !indent ? (
         <span className="pill shrink-0 bg-(--color-grey-bg) text-(--color-muted)">

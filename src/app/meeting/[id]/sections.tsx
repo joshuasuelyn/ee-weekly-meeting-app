@@ -23,7 +23,13 @@ import {
   solveIssue,
   toggleIssuePick,
 } from "@/app/actions";
-import { COMPLETION_TARGET, MAX_ISSUES_PER_MEETING, splitBrainDump } from "@/lib/rules";
+import {
+  COMPLETION_TARGET,
+  MAX_ISSUES_PER_MEETING,
+  NEEDS_HELP_LABEL,
+  ON_TRACK_LABEL,
+  splitBrainDump,
+} from "@/lib/rules";
 import { segueQuestionFor } from "@/lib/segue";
 import { formatShortDate } from "@/lib/dates";
 import type {
@@ -356,27 +362,19 @@ function PriorityLine({
         </p>
       </div>
       <div className="flex gap-2">
+        {/* One control, not two. A priority is on track unless someone says otherwise, so
+            the common case costs no clicks and the review only records exceptions. */}
         <button
           type="button"
-          onClick={() => onChoose(true)}
-          className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-            onTrack === true
-              ? "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
-              : "border-(--color-line)"
-          }`}
-        >
-          On
-        </button>
-        <button
-          type="button"
-          onClick={() => onChoose(false)}
+          onClick={() => onChoose(onTrack === false)}
           className={`px-3.5 py-1.5 rounded-lg border font-medium ${
             onTrack === false
               ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-              : "border-(--color-line)"
+              : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
           }`}
+          title={onTrack === false ? "Mark it back on track" : "Say this one needs help"}
         >
-          Off
+          {onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
         </button>
         {onTrack === false ? (
           <button
@@ -478,7 +476,7 @@ export function PrioritiesSection({ data }: { data: RunnerData }) {
     <>
       <SectionTitle
         title="Priorities"
-        hint="On or off. No discussion here — anything off track goes to Issues."
+        hint="On track unless someone says otherwise. Anything needing help goes to Issues."
       />
 
       {data.priorities.length === 0 ? (

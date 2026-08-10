@@ -6,6 +6,7 @@ import { Card, SectionTitle } from "@/components/ui";
 import {
   addHeadline,
   addIssues,
+  createIssueFromPriority,
   createPriority,
   createTodo,
   deleteHeadline,
@@ -21,6 +22,8 @@ import { nextMonday } from "@/lib/dates";
 import {
   MAX_MONTHLY_PRIORITIES,
   MONTHLY_OVERFLOW_PROMPT,
+  NEEDS_HELP_LABEL,
+  ON_TRACK_LABEL,
   NO_STEP_PROMPT,
   STEP_OVERFLOW_PROMPT,
   splitBrainDump,
@@ -99,6 +102,7 @@ function MetricInput({ meetingId, row }: { meetingId: string; row: PrepMetric })
 
 function PriorityRow({
   meetingId,
+  meetingDate,
   priority,
   initial,
   indent = false,
@@ -107,6 +111,7 @@ function PriorityRow({
   readOnly = false,
 }: {
   meetingId: string;
+  meetingDate: string;
   priority: Priority;
   initial: boolean | null;
   indent?: boolean;
@@ -118,6 +123,7 @@ function PriorityRow({
   readOnly?: boolean;
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
+  const [raised, setRaised] = useState(false);
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -221,39 +227,44 @@ function PriorityRow({
       {readOnly ? (
         <span
           className={`pill shrink-0 ${
-            onTrack === true
-              ? "bg-(--color-on-bg) text-(--color-on)"
-              : onTrack === false
-                ? "bg-(--color-off-bg) text-(--color-off)"
-                : "bg-(--color-grey-bg) text-(--color-muted)"
+            onTrack === false
+              ? "bg-(--color-off-bg) text-(--color-off)"
+              : "bg-(--color-on-bg) text-(--color-on)"
           }`}
         >
-          {onTrack === true ? "on" : onTrack === false ? "off" : "theirs to review"}
+          {onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
         </span>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* One control. A priority is on track unless someone says otherwise, so the
+              common case costs no clicks and only the exceptions get recorded. */}
           <button
             type="button"
-            onClick={() => choose(true)}
-            className={`px-3.5 py-1.5 rounded-lg border font-medium ${
-              onTrack === true
-                ? "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
-                : "border-(--color-line) hover:bg-(--color-grey-bg)"
-            }`}
-          >
-            On
-          </button>
-          <button
-            type="button"
-            onClick={() => choose(false)}
+            onClick={() => choose(onTrack === false)}
             className={`px-3.5 py-1.5 rounded-lg border font-medium ${
               onTrack === false
                 ? "bg-(--color-off-bg) text-(--color-off) border-(--color-off)"
-                : "border-(--color-line) hover:bg-(--color-grey-bg)"
+                : "bg-(--color-on-bg) text-(--color-on) border-(--color-on)"
             }`}
+            title={onTrack === false ? "Mark it back on track" : "Say this one needs help"}
           >
-            Off
+            {onTrack === false ? NEEDS_HELP_LABEL : ON_TRACK_LABEL}
           </button>
+          {/* Saying it needs help and doing nothing about it is how a board goes stale.
+              The issue is one click away, and lands in Monday's IDS list. */}
+          {onTrack === false ? (
+            <button
+              type="button"
+              disabled={raised}
+              onClick={() => {
+                setRaised(true);
+                startTransition(() => void createIssueFromPriority(priority.id, meetingDate));
+              }}
+              className="px-3 py-1.5 rounded-lg border border-(--color-off) text-(--color-off) font-medium disabled:opacity-40"
+            >
+              {raised ? "Added to issues" : "Raise as an issue"}
+            </button>
+          ) : null}
         </div>
       )}
     </div>
@@ -397,6 +408,7 @@ function PriorityGroupBlock({
     <div className="mb-4 last:mb-0">
       <PriorityRow
         meetingId={meetingId}
+        meetingDate={meetingDate}
         priority={group.parent}
         initial={checks[group.parent.id] ?? null}
       />
@@ -404,6 +416,7 @@ function PriorityGroupBlock({
         <PriorityRow
           key={s.id}
           meetingId={meetingId}
+          meetingDate={meetingDate}
           priority={s}
           initial={checks[s.id] ?? null}
           indent
@@ -884,6 +897,7 @@ export function PrepForm({
               <PriorityRow
                 key={p.id}
                 meetingId={meetingId}
+                meetingDate={meetingDate}
                 priority={p}
                 initial={checks[p.id] ?? null}
                 // A step cascaded from someone else's monthly goal — say which one, or it
