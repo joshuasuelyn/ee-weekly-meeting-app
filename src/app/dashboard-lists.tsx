@@ -162,7 +162,12 @@ export function PriorityList({ priorities }: { priorities: RunnerPriority[] }) {
       ) : null}
       <span className="flex-1 min-w-[12rem]">{p.text}</span>
       {p.needsStep ? (
-        <span className="pill shrink-0 bg-(--color-amber-bg) text-(--color-amber)">no step</span>
+        <span
+          className="pill shrink-0 bg-(--color-amber-bg) text-(--color-amber)"
+          title="This month's priority has nothing scheduled to move it forward this week. Add a weekly step on your prep screen."
+        >
+          no step this week
+        </span>
       ) : null}
       <span className="text-[0.85rem] text-(--color-muted) whitespace-nowrap">
         {p.ownerName} · {formatShortDate(p.dueDate)}

@@ -3,11 +3,13 @@ import Link from "next/link";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
 import { usingLocalStore } from "@/lib/db";
+import Image from "next/image";
 import { SignOutButton } from "@/components/sign-out";
 
 export const metadata: Metadata = {
   title: "Easy Europe — Weekly Meeting",
   description: "Level 10 weekly management meeting for Easy Europe",
+  icons: { icon: "/ee-logo.png" },
 };
 
 const NAV = [
@@ -30,10 +32,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         ) : null}
 
-        <header className="border-b border-(--color-line) bg-(--color-panel)">
+        {/* A teal rule under the header is where the brand colour goes. It cannot go on
+            anything that carries meaning here — green, red and amber are load-bearing on the
+            scorecard, and a fourth strong colour competing with them would cost legibility
+            for decoration. */}
+        <header className="border-b-2 border-(--color-brand) bg-(--color-panel)">
           <div className="mx-auto max-w-6xl px-5 h-14 flex items-center gap-6">
-            <Link href="/" className="font-semibold tracking-tight shrink-0">
-              Easy Europe <span className="text-(--color-muted) font-normal">Weekly</span>
+            <Link href="/" className="flex items-center gap-2.5 shrink-0">
+              {/* The mark carries the brand; the wordmark inside it is too small to read at
+                  header size, so the name is set in text beside it rather than doubled. */}
+              <Image
+                src="/ee-logo.png"
+                alt=""
+                width={512}
+                height={512}
+                priority
+                className="size-8 object-contain"
+              />
+              <span className="font-semibold tracking-tight">
+                Easy Europe <span className="text-(--color-muted) font-normal">Weekly</span>
+              </span>
             </Link>
 
             {user ? (

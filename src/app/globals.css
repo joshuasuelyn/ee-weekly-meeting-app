@@ -6,23 +6,44 @@
   dashboard and nothing important is rendered in a small grey font.
 */
 
+/*
+  Easy Europe's own palette, taken from easyeurope.com.my:
+    #00b9b4  teal        — the logo and the site's primary
+    #014a72  deep navy   — headings and the darkest surface
+    #b02a59  raspberry   — the site's secondary accent
+
+  The status colours are deliberately NOT brand colours. On this screen green and red are
+  load-bearing — R1 says a blank number is red — so they answer to legibility, not to the
+  brand guide. The teal is kept away from them and used for interface furniture, which is
+  also why it reads as Easy Europe's without competing with the one thing the room is
+  supposed to be looking at.
+*/
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --color-ink: oklch(0.22 0.02 260);
-  --color-muted: oklch(0.52 0.02 260);
-  --color-line: oklch(0.91 0.01 260);
-  --color-surface: oklch(0.99 0.002 260);
+
+  /* Ink is the brand navy rather than a neutral, so every heading carries it. */
+  --color-ink: oklch(0.33 0.07 240);
+  --color-muted: oklch(0.53 0.02 240);
+  --color-line: oklch(0.91 0.012 220);
+  --color-surface: oklch(0.985 0.006 200);
   --color-panel: oklch(1 0 0);
 
+  /* Status. Untouched by the rebrand — these have to be unmistakable at 1.5x zoom. */
   --color-on: oklch(0.58 0.15 150);
   --color-on-bg: oklch(0.95 0.05 150);
   --color-off: oklch(0.56 0.21 25);
   --color-off-bg: oklch(0.95 0.05 25);
   --color-amber: oklch(0.68 0.16 70);
   --color-amber-bg: oklch(0.95 0.06 80);
-  --color-grey: oklch(0.6 0.01 260);
-  --color-grey-bg: oklch(0.95 0.005 260);
-  --color-accent: oklch(0.5 0.15 260);
+  --color-grey: oklch(0.6 0.01 240);
+  --color-grey-bg: oklch(0.955 0.008 200);
+
+  /* Brand. Teal leads; raspberry is held back for the rare emphasis. */
+  --color-accent: oklch(0.69 0.12 195);
+  --color-accent-bg: oklch(0.95 0.04 195);
+  --color-brand: oklch(0.69 0.12 195);
+  --color-brand-deep: oklch(0.33 0.07 240);
+  --color-brand-alt: oklch(0.49 0.16 355);
 }
 
 html {
