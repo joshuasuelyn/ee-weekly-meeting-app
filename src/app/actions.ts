@@ -248,7 +248,9 @@ export async function addIssues(formData: FormData) {
 
 /** R9 — the cap is enforced here, not only in the UI. */
 export async function toggleIssuePick(meetingId: string, issueId: string, picked: boolean) {
-  await requireUser();
+  // Facilitator-only, matching the row-level policy. Asking for less here meant anyone else
+  // pressing the button got silence: the database refused the write and said nothing.
+  await requireFacilitator();
   const store = getStore();
 
   if (picked) {

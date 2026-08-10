@@ -387,7 +387,16 @@ export const supabaseStore: Store = {
       ? await sb
           .from("issue_picks")
           .upsert({ meeting_id: meetingId, issue_id: issueId }, { onConflict: "meeting_id,issue_id" })
-      : await sb.from("issue_picks").delete().eq("meeting_id", meetingId).eq("issue_id", issueId);
+          .select("issue_id")
+      : await sb
+          .from("issue_picks")
+          .delete()
+          .eq("meeting_id", meetingId)
+          .eq("issue_id", issueId)
+          .select("issue_id");
     if (res.error) throw new Error(`setIssuePick: ${res.error.message}`);
+    // Picking is facilitator-only in RLS, and a refused write matches no rows and reports
+    // success — which on screen is a button that does nothing at all.
+    assertWrote(res.data, picked ? "issue pick" : "unpick");
   },
 };

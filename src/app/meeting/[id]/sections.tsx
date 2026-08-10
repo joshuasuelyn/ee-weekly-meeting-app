@@ -772,13 +772,25 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
             {issue.raisedByName} · open {issue.weeksOpen} week{issue.weeksOpen === 1 ? "" : "s"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => startTransition(() => void toggleIssuePick(data.meeting.id, issue.id, false))}
-          className="text-[0.85rem] text-(--color-muted) underline underline-offset-2"
-        >
-          Unpick
-        </button>
+        {data.isFacilitator ? (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setError(null);
+              startTransition(async () => {
+                try {
+                  await toggleIssuePick(data.meeting.id, issue.id, false);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Could not put this one back.");
+                }
+              });
+            }}
+            className="text-[0.85rem] text-(--color-muted) underline underline-offset-2 disabled:opacity-40"
+          >
+            Put back
+          </button>
+        ) : null}
       </div>
 
       {issue.linkedTodos.length > 0 ? (
