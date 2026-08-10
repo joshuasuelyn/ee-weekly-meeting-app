@@ -281,9 +281,11 @@ export async function loadPrep(user: User) {
  * R6 at meeting start: every overdue open to-do carries itself. Idempotent, so calling this
  * on every load of the runner is safe.
  */
-export async function applyCarryForwardFor(meeting: Meeting): Promise<void> {
+export async function applyCarryForwardFor(meeting: Meeting): Promise<boolean> {
   const store = getStore();
   const todos = await store.listTodos();
   const updates = computeCarryForward(todos, meeting);
-  if (updates.length > 0) await store.applyCarryForward(updates);
+  if (updates.length === 0) return false;
+  await store.applyCarryForward(updates);
+  return true;
 }

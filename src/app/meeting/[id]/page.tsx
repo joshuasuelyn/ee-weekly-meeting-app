@@ -15,10 +15,14 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
 
   // R6 runs on load rather than behind a button, so an overdue to-do has already carried
   // itself by the time anyone looks at the list. Idempotent, so a refresh is harmless.
+  //
+  // Reloaded only when something actually carried. Carry-forward changes nothing on almost
+  // every load — the same meeting is opened many times a morning — and rebuilding the whole
+  // context for a no-op doubled the queries behind every click in the runner.
   const first = await loadMeetingContext(id);
-  await applyCarryForwardFor(first.meeting);
+  const carried = await applyCarryForwardFor(first.meeting);
 
-  const ctx = await loadMeetingContext(first.meeting.id);
+  const ctx = carried ? await loadMeetingContext(first.meeting.id) : first;
   const data = buildRunnerData(ctx, user, todoDueDateFor(ctx.meeting.date));
 
   return <Runner data={data} />;
