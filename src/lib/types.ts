@@ -178,7 +178,7 @@ export interface Database {
  * show" — which needs the numbers to have been read first.
  */
 export const SECTIONS = [
-  { n: 1, name: "Segue", short: "Segue", minutes: 5, blurb: "One personal best + one professional best. One line each." },
+  { n: 1, name: "Segue", short: "Segue", minutes: 5, blurb: "This week's question, then the best thing at work. One line each." },
   { n: 2, name: "Scorecard", short: "Scorecard", minutes: 5, blurb: "Read the numbers. On or off track. No discussion." },
   { n: 3, name: "Priorities", short: "Priorities", minutes: 5, blurb: "On or off track only. Off-track drops to Issues." },
   { n: 4, name: "To-Do Review", short: "To-Do Review", minutes: 5, blurb: "Done or not done. No explanations. Target 90%." },

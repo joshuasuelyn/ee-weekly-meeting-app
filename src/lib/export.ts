@@ -28,7 +28,7 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
   lines.push("");
   if (ctx.segues.length === 0) lines.push("_Not recorded._");
   for (const s of ctx.segues) {
-    lines.push(`- **${name(s.user_id)}** — ${s.personal || "—"} / ${s.professional || "—"}`);
+    lines.push(`- **${name(s.user_id)}** — ${s.personal || "—"} · at work: ${s.professional || "—"}`);
   }
   lines.push("");
 

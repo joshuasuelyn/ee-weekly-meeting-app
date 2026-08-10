@@ -70,8 +70,8 @@ function SegueRow({
         <input
           value={value.professional}
           onChange={(e) => update({ ...value, professional: e.target.value })}
-          placeholder="Professional best"
-          aria-label={`${person.name} professional best`}
+          placeholder="Best thing at work this week"
+          aria-label={`${person.name} best thing at work this week`}
           className="flex-1 px-3 py-2 rounded-xl border border-(--color-line)"
         />
         <span className="w-16 shrink-0">

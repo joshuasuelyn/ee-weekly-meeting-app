@@ -10,6 +10,7 @@ import {
   nextMonday,
   toDateString,
 } from "./dates";
+import { segueQuestionFor } from "./segue";
 import {
   buildScorecard,
   completionFor,
@@ -176,7 +177,7 @@ export async function loadPrep(user: User) {
   const store = getStore();
   const meeting = await getOrCreateCurrentMeeting();
 
-  const [settings, metrics, priorities, meetings, submissions, users, headlines] =
+  const [settings, metrics, priorities, meetings, submissions, users, headlines, segues] =
     await Promise.all([
       store.getSettings(),
       store.listMetrics(),
@@ -185,6 +186,7 @@ export async function loadPrep(user: User) {
       store.listSubmissions(meeting.id),
       store.listUsers(),
       store.listHeadlines(meeting.id),
+      store.listSegues(meeting.id),
     ]);
 
   const previousMeeting =
@@ -211,6 +213,17 @@ export async function loadPrep(user: User) {
       lastValue: previousValues.find((v) => v.metric_id === metric.id)?.value ?? null,
     })),
     myPriorities,
+    /**
+     * My own segue answers. On the prep screen because being asked cold in the room is
+     * what makes the round slow and awkward — people deserve a moment to think of
+     * something worth saying. It is still spoken aloud on Monday; this only means nobody
+     * is composing it while four people wait.
+     */
+    mySegue: (() => {
+      const mine = segues.find((s) => s.user_id === user.id);
+      return { personal: mine?.personal ?? "", professional: mine?.professional ?? "" };
+    })(),
+    segueQuestion: segueQuestionFor(meeting.date),
     // Second argument is the whole board: my goals, but every step hanging off them.
     grouped: groupPriorities(myPriorities, meeting.date, priorities),
     /** Everyone a weekly step can be handed to — the cascade runs to people, not to roles. */

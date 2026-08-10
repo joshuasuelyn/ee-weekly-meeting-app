@@ -5,6 +5,7 @@ import { formatDate, rolloutWeek } from "@/lib/dates";
 import { metricsMissingTargets } from "@/lib/rules";
 import { today } from "@/lib/queries";
 import { Card, SectionTitle } from "@/components/ui";
+import { SaveStatusBanner, UnsavedGuard } from "@/components/autosave";
 import { MetricRow, PersonRow, SettingsRow } from "./rows";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +28,16 @@ export default async function AdminPage() {
 
   return (
     <div className="grid gap-6">
+      <UnsavedGuard />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
         <p className="text-(--color-muted) mt-1">
-          There is no Save button. Everything on this page saves itself a moment after you stop
-          typing, and says &ldquo;Saved&rdquo; when it has.
+          No Save button. Each field saves itself a moment after you stop typing, and shows
+          &ldquo;Saved&rdquo; only once the database has confirmed it.
         </p>
+        <div className="mt-2">
+          <SaveStatusBanner />
+        </div>
       </div>
 
       {/* R2: grey lines belong on a to-do list until a target is agreed. */}

@@ -2,7 +2,36 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
+
+// How many fields on this page are holding changes the database has not confirmed.
+// Module-level rather than React state because the browser's unload warning has to be able
+// to answer "is anything outstanding?" without a component tree to walk.
+let outstanding = 0;
+const watchers = new Set<() => void>();
+
+function changeOutstanding(delta: number) {
+  outstanding = Math.max(0, outstanding + delta);
+  for (const w of watchers) w();
+}
+
+/**
+ * Blocks the tab from closing while a change is still in flight. Autosave is only
+ * trustworthy if it is impossible to walk away from unsaved work without being told, and
+ * this is the part that makes the promise true rather than merely likely.
+ */
+export function UnsavedGuard() {
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (outstanding === 0) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+  return null;
+}
 
 /**
  * Debounced autosave. The facilitator types on a shared screen during a live meeting, so
@@ -32,26 +61,70 @@ export function useAutosave<T>(initial: T, save: (value: T) => Promise<void>, de
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialKey]);
 
-  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
+  // Unmounting with a change still counted would leave the unload warning stuck on.
+  const counted = useRef(false);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (counted.current) {
+        counted.current = false;
+        changeOutstanding(-1);
+      }
+    },
+    [],
+  );
+
+  async function commit() {
+    if (timer.current) clearTimeout(timer.current);
+    setState("saving");
+    try {
+      await save(latest.current);
+      dirty.current = false;
+      setState("saved");
+    } catch {
+      setState("error");
+      return;
+    }
+    if (counted.current) {
+      counted.current = false;
+      changeOutstanding(-1);
+    }
+  }
 
   function update(next: T) {
     dirty.current = true;
     setValue(next);
     latest.current = next;
-    setState("saving");
+    // "unsaved", not "saving": nothing has been sent yet, and saying otherwise is the
+    // small lie that makes the whole indicator untrustworthy.
+    setState("unsaved");
+    if (!counted.current) {
+      counted.current = true;
+      changeOutstanding(1);
+    }
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      try {
-        await save(latest.current);
-        dirty.current = false;
-        setState("saved");
-      } catch {
-        setState("error");
-      }
-    }, delay);
+    timer.current = setTimeout(() => void commit(), delay);
   }
 
-  return { value, update, state };
+  /** Send it now rather than waiting out the debounce. */
+  function saveNow() {
+    if (!dirty.current) return;
+    void commit();
+  }
+
+  return { value, update, state, saveNow, dirty: state === "unsaved" || state === "error" };
+}
+
+/** Live count of fields whose changes the database has not confirmed. */
+export function useOutstandingCount(): number {
+  const [count, setCount] = useState(outstanding);
+  useEffect(() => {
+    const w = () => setCount(outstanding);
+    watchers.add(w);
+    w();
+    return () => void watchers.delete(w);
+  }, []);
+  return count;
 }
 
 /**
@@ -94,15 +167,40 @@ export function SavedFlag({ show, label = "Saved" }: { show: boolean; label?: st
   );
 }
 
+/**
+ * Four states, said plainly. The distinction that matters is between "unsaved" and
+ * "saved": everything else is decoration. "Saved" appears only once the database has
+ * confirmed the write, so it is a fact about the server rather than a hope about the
+ * network.
+ */
 export function SaveDot({ state }: { state: SaveState }) {
   if (state === "idle") return null;
-  const label =
-    state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Not saved — check connection";
+
+  const { label, tone } = {
+    unsaved: { label: "● Not saved yet", tone: "text-(--color-amber)" },
+    saving: { label: "Saving…", tone: "text-(--color-muted)" },
+    saved: { label: "✓ Saved", tone: "text-(--color-on)" },
+    error: { label: "✕ Not saved — check connection", tone: "text-(--color-off)" },
+  }[state];
+
+  return <span className={`text-[0.78rem] whitespace-nowrap ${tone}`}>{label}</span>;
+}
+
+/**
+ * Page-level answer to "is everything in?". Sits in the header so it is visible without
+ * hunting field by field, and is the thing to look at before closing the tab.
+ */
+export function SaveStatusBanner() {
+  const count = useOutstandingCount();
+
+  if (count === 0) {
+    return (
+      <span className="text-[0.85rem] text-(--color-on)">✓ All changes saved</span>
+    );
+  }
   return (
-    <span
-      className={`text-[0.78rem] ${state === "error" ? "text-(--color-off)" : "text-(--color-muted)"}`}
-    >
-      {label}
+    <span className="text-[0.85rem] text-(--color-amber)">
+      ● {count} change{count === 1 ? "" : "s"} not saved yet
     </span>
   );
 }

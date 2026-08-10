@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { renderDefinition } from "@/lib/db/seed-data";
 import { formatDate } from "@/lib/dates";
 import { loadPrep } from "@/lib/queries";
+import { SaveStatusBanner, UnsavedGuard } from "@/components/autosave";
 import { PrepForm } from "./prep-form";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function PrepPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
+      <UnsavedGuard />
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">
           {user.name}&rsquo;s prep for {formatDate(prep.meeting.date)}
@@ -23,9 +25,12 @@ export default async function PrepPage() {
           Week {prep.week} · five minutes, then close the tab.
         </p>
         <p className="text-(--color-muted) text-[0.9rem] mt-1">
-          Nothing here needs saving. What you type is kept as you go — the buttons below only add
-          new lines.
+          No Save button — what you type is stored as you go. The buttons below only add new
+          lines.
         </p>
+        <div className="mt-2">
+          <SaveStatusBanner />
+        </div>
       </header>
 
       <PrepForm
@@ -47,6 +52,8 @@ export default async function PrepPage() {
         people={prep.people}
         parentTextById={prep.parentTextById}
         alignment={prep.myAlignment}
+        segue={prep.mySegue}
+        segueQuestion={prep.segueQuestion}
       />
     </div>
   );

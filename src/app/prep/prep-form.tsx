@@ -11,6 +11,7 @@ import {
   deleteHeadline,
   setMetricValue,
   setPriorityCheck,
+  setSegue,
   submitPrep,
   updateHeadline,
 } from "@/app/actions";
@@ -579,6 +580,63 @@ function IssueDump({ meetingDate }: { meetingDate: string }) {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * The segue, answerable on Friday.
+ *
+ * It stays a spoken round on Monday — this is not a substitute for saying it out loud. It
+ * exists because being asked cold in the room is what makes the round slow: people reach
+ * for something and land on "nothing much", which teaches everyone the question is a
+ * formality. Given a day to notice an answer, they bring a real one.
+ */
+function SeguePrep({
+  meetingId,
+  ownerId,
+  question,
+  initial,
+}: {
+  meetingId: string;
+  ownerId: string;
+  question: string;
+  initial: { personal: string; professional: string };
+}) {
+  const { value, update, state } = useAutosave(initial, (v) =>
+    setSegue(meetingId, ownerId, v.personal, v.professional),
+  );
+
+  return (
+    <Card className="p-5">
+      <SectionTitle
+        title="Two things to open with"
+        hint="You'll say these out loud on Monday. Writing them now means you're not put on the spot."
+      />
+
+      <label className="block mb-4">
+        <div className="text-[0.9rem] font-medium mb-1">{question}</div>
+        <input
+          value={value.personal}
+          onChange={(e) => update({ ...value, personal: e.target.value })}
+          placeholder="One line is plenty"
+          className="w-full px-3 py-2.5 rounded-xl border border-(--color-line)"
+        />
+      </label>
+
+      <label className="block">
+        <div className="text-[0.9rem] font-medium mb-1">Best thing at work this week</div>
+        <input
+          value={value.professional}
+          onChange={(e) => update({ ...value, professional: e.target.value })}
+          placeholder="Anything that went well — it doesn't have to be big"
+          className="w-full px-3 py-2.5 rounded-xl border border-(--color-line)"
+        />
+      </label>
+
+      <div className="mt-2">
+        <SaveDot state={state} />
+      </div>
+    </Card>
+  );
+}
+
 export function PrepForm({
   meetingId,
   meetingDate,
@@ -593,6 +651,8 @@ export function PrepForm({
   people,
   parentTextById,
   alignment,
+  segue,
+  segueQuestion,
 }: {
   meetingId: string;
   meetingDate: string;
@@ -607,6 +667,8 @@ export function PrepForm({
   people: { id: string; name: string }[];
   parentTextById: Record<string, string>;
   alignment: { id: string; text: string }[];
+  segue: { personal: string; professional: string };
+  segueQuestion: string;
 }) {
   const [isSubmitted, setSubmitted] = useState(submitted);
   const [, startTransition] = useTransition();
@@ -620,6 +682,13 @@ export function PrepForm({
 
   return (
     <div className="grid gap-6">
+      <SeguePrep
+        meetingId={meetingId}
+        ownerId={ownerId}
+        question={segueQuestion}
+        initial={segue}
+      />
+
       <Card className="p-5">
         <SectionTitle
           title="My numbers"
