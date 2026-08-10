@@ -25,6 +25,7 @@ import {
 } from "./rules";
 import type {
   Headline,
+  MetricValue,
   Issue,
   Meeting,
   Metric,
@@ -91,35 +92,59 @@ export interface MeetingContext {
 export async function loadMeetingContext(meetingId?: string): Promise<MeetingContext> {
   const store = getStore();
 
-  const meeting = meetingId
-    ? ((await store.getMeeting(meetingId)) ?? (await getOrCreateCurrentMeeting()))
-    : await getOrCreateCurrentMeeting();
+  // Everything this meeting needs, in one round-trip wave.
+  //
+  // It used to take three: find the meeting, then fetch what is true of the whole board,
+  // then fetch what belongs to that meeting — each wave waiting on the one before. But the
+  // runner already knows the id from its own URL, so the per-meeting reads never had to
+  // wait to be told which meeting they were for. Only last week's numbers genuinely depend
+  // on an earlier answer, and that is one small query at the end.
+  const perMeeting = (id: string) =>
+    [
+      store.listMetricValues(id),
+      store.listPriorityChecks(id),
+      store.listSegues(id),
+      store.listHeadlines(id),
+      store.listRatings(id),
+      store.listSubmissions(id),
+      store.listIssuePicks(id),
+    ] as const;
 
-  const [settings, users, metrics, todos, issues, priorities, meetings] = await Promise.all([
-    store.getSettings(),
-    store.listUsers(),
-    store.listMetrics(),
-    store.listTodos(),
-    store.listIssues(),
-    store.listPriorities(),
-    store.listMeetings(),
-  ]);
+  const [found, settings, users, metrics, todos, issues, priorities, meetings, ...first] =
+    await Promise.all([
+      meetingId ? store.getMeeting(meetingId) : getOrCreateCurrentMeeting(),
+      store.getSettings(),
+      store.listUsers(),
+      store.listMetrics(),
+      store.listTodos(),
+      store.listIssues(),
+      store.listPriorities(),
+      store.listMeetings(),
+      ...(meetingId
+        ? perMeeting(meetingId)
+        : ([[], [], [], [], [], [], []] as unknown as ReturnType<typeof perMeeting>)),
+    ]);
+
+  // A meetingId that no longer exists, or none given at all: resolve it and fetch its rows.
+  const meeting = found ?? (await getOrCreateCurrentMeeting());
+  const speculative = Boolean(meetingId) && found !== null;
+  const [values, checks, segues, headlines, ratings, submissions, picks] = speculative
+    ? (first as [
+        MetricValue[],
+        PriorityCheck[],
+        Segue[],
+        Headline[],
+        Rating[],
+        Submission[],
+        string[],
+      ])
+    : await Promise.all(perMeeting(meeting.id));
 
   const previousMeeting =
     meetings.filter((m) => m.date < meeting.date).sort((a, b) => b.date.localeCompare(a.date))[0] ??
     null;
 
-  const [values, previousValues, checks, segues, headlines, ratings, submissions, picks] =
-    await Promise.all([
-      store.listMetricValues(meeting.id),
-      previousMeeting ? store.listMetricValues(previousMeeting.id) : Promise.resolve([]),
-      store.listPriorityChecks(meeting.id),
-      store.listSegues(meeting.id),
-      store.listHeadlines(meeting.id),
-      store.listRatings(meeting.id),
-      store.listSubmissions(meeting.id),
-      store.listIssuePicks(meeting.id),
-    ]);
+  const previousValues = previousMeeting ? await store.listMetricValues(previousMeeting.id) : [];
 
   const completion = completionFor(todos, meeting);
   const scorecard = buildScorecard({
