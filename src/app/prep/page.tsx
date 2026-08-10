@@ -53,6 +53,7 @@ export default async function PrepPage() {
         parentTextById={prep.parentTextById}
         alignment={prep.myAlignment}
         closed={prep.myClosed}
+        issues={prep.myIssues.map((i) => ({ id: i.id, text: i.text, raisedDate: i.raised_date }))}
         segue={prep.mySegue}
         segueQuestion={prep.segueQuestion}
       />

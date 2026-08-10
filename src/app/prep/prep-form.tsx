@@ -7,11 +7,13 @@ import { Card, SectionTitle } from "@/components/ui";
 import {
   addHeadline,
   addIssues,
+  dropIssue,
   createIssueFromPriority,
   createPriority,
   createTodo,
   deleteHeadline,
   dropPriority,
+  renameIssue,
   renamePriority,
   setMetricValue,
   setPriorityCheck,
@@ -667,6 +669,59 @@ function AlignmentPrep({
 // Issues
 // ---------------------------------------------------------------------------
 
+/**
+ * One issue I raised, shown back to me.
+ *
+ * The composer swallowed whatever was typed and said only "Added 3 issues", so a line
+ * written in a hurry on Friday could not be reread, reworded or withdrawn before the room
+ * saw it on Monday. It also made it impossible to notice you had raised the same thing
+ * twice — which is how an issues list starts looking longer than the problem is.
+ */
+function MyIssueRow({ issue }: { issue: { id: string; text: string; raisedDate: string } }) {
+  const removing = useVanish();
+  const [editing, setEditing] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const text = useAutosave(issue.text, (v) => renameIssue(issue.id, v));
+
+  if (removing.gone) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-2 border-b border-(--color-line) last:border-0">
+      {editing ? (
+        <input
+          value={text.value}
+          onChange={(e) => text.update(e.target.value)}
+          autoFocus
+          aria-label="Issue wording"
+          className="flex-1 min-w-[14rem] px-3 py-1.5 rounded-lg border border-(--color-line)"
+        />
+      ) : (
+        <span className="flex-1 min-w-[14rem]">{text.value}</span>
+      )}
+      <SaveDot state={text.state} />
+      <button
+        type="button"
+        onClick={() => setEditing((e) => !e)}
+        className="text-[0.8rem] text-(--color-muted) underline underline-offset-2"
+      >
+        {editing ? "Done" : "Edit"}
+      </button>
+      <button
+        type="button"
+        onClick={() => (confirm ? removing.vanish(() => dropIssue(issue.id)) : setConfirm(true))}
+        className={`text-[0.8rem] underline underline-offset-2 whitespace-nowrap ${
+          confirm ? "text-(--color-off) font-medium" : "text-(--color-muted)"
+        }`}
+      >
+        {confirm ? "Remove it?" : "Remove"}
+      </button>
+      {removing.error ? (
+        <span className="text-[0.8rem] text-(--color-off)">{removing.error}</span>
+      ) : null}
+    </div>
+  );
+}
+
 function IssueDump({ meetingDate }: { meetingDate: string }) {
   const [text, setText] = useState("");
   const [added, setAdded] = useState<number | null>(null);
@@ -813,6 +868,7 @@ export function PrepForm({
   parentTextById,
   alignment,
   closed,
+  issues,
   segue,
   segueQuestion,
 }: {
@@ -830,6 +886,7 @@ export function PrepForm({
   parentTextById: Record<string, string>;
   alignment: { id: string; text: string }[];
   closed: Priority[];
+  issues: { id: string; text: string; raisedDate: string }[];
   segue: { personal: string; professional: string };
   segueQuestion: string;
 }) {
@@ -1010,8 +1067,33 @@ export function PrepForm({
       <AlignmentPrep meetingId={meetingId} ownerId={ownerId} items={alignment} />
 
       <Card className="p-5">
-        <SectionTitle title="Add issues" hint="One per line. Paste a dump — it gets split for you." />
+        <SectionTitle
+          title="Add issues"
+          hint="One per line. Paste a dump — it gets split for you."
+          right={
+            issues.length > 0 ? (
+              <span className="pill bg-(--color-grey-bg) text-(--color-muted)">
+                {issues.length} open from you
+              </span>
+            ) : undefined
+          }
+        />
         <IssueDump meetingDate={meetingDate} />
+
+        {issues.length > 0 ? (
+          <div className="mt-4 pt-3 border-t border-(--color-line)">
+            <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
+              Your open issues
+            </h3>
+            <p className="text-[0.85rem] text-(--color-muted) mb-2">
+              Reword anything that won&rsquo;t make sense to the room on Monday, or remove it if
+              you&rsquo;ve since thought better of it.
+            </p>
+            {issues.map((i) => (
+              <MyIssueRow key={i.id} issue={i} />
+            ))}
+          </div>
+        ) : null}
       </Card>
 
       <Card className="p-5 flex flex-wrap items-center justify-between gap-4">

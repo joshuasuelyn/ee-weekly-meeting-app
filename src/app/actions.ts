@@ -284,6 +284,15 @@ export async function solveIssue(issueId: string, resolutionNote: string, meetin
   refresh();
 }
 
+/** Fix the wording. An issue typed in a hurry on Friday still has to make sense on Monday. */
+export async function renameIssue(issueId: string, text: string) {
+  await requireUser();
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error("An issue needs words. Use Remove if you meant to delete it.");
+  await getStore().updateIssue(issueId, { text: trimmed });
+  refresh();
+}
+
 export async function dropIssue(issueId: string) {
   await requireUser();
   await getStore().updateIssue(issueId, { status: "dropped" });

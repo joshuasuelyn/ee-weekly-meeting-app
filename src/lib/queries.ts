@@ -202,7 +202,7 @@ export async function loadPrep(user: User) {
   const store = getStore();
   const meeting = await getOrCreateCurrentMeeting();
 
-  const [settings, metrics, priorities, meetings, submissions, users, headlines, segues] =
+  const [settings, metrics, priorities, meetings, submissions, users, headlines, segues, issues] =
     await Promise.all([
       store.getSettings(),
       store.listMetrics(),
@@ -212,6 +212,7 @@ export async function loadPrep(user: User) {
       store.listUsers(),
       store.listHeadlines(meeting.id),
       store.listSegues(meeting.id),
+      store.listIssues(),
     ]);
 
   const previousMeeting =
@@ -238,6 +239,15 @@ export async function loadPrep(user: User) {
       lastValue: previousValues.find((v) => v.metric_id === metric.id)?.value ?? null,
     })),
     myPriorities,
+    /**
+     * Issues I raised that are still open, newest first. Shown back on the prep screen so a
+     * line typed in a hurry can be reread, reworded or withdrawn before Monday — and so it
+     * is obvious when the same thing has already been raised.
+     */
+    myIssues: issues
+      .filter((i) => i.raised_by_id === user.id && i.status === "open")
+      .sort((a, b) => b.raised_date.localeCompare(a.raised_date))
+      .slice(0, 12),
     /**
      * Closed this month, newest first. Done is one click with no confirmation, so there has
      * to be a way back that outlives the undo banner — otherwise a misclick noticed after a
