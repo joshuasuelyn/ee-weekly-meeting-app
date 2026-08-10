@@ -12,6 +12,7 @@ import {
   groupPriorities,
   hasStepForWeek,
   monthlyPrioritiesNeedingStep,
+  priorityIdsToDrop,
   carryLevel,
   completionFor,
   computeCarryForward,
@@ -482,6 +483,32 @@ describe("priorities — scope, and monthly broken into weekly", () => {
       expect(hasStepForWeek("m1", [monthly(), step({ parent_id: "somewhere-else" })], MEETING)).toBe(
         false,
       );
+    });
+  });
+
+  describe("removing a priority", () => {
+    it("takes the goal's open weekly steps with it", () => {
+      const board = [monthly(), step({ id: "s1" }), step({ id: "s2" })];
+      expect(priorityIdsToDrop("m1", board).sort()).toEqual(["m1", "s1", "s2"]);
+    });
+
+    it("leaves finished steps alone — they happened, and the record should say so", () => {
+      const board = [monthly(), step({ id: "s1", status: "done" }), step({ id: "s2" })];
+      expect(priorityIdsToDrop("m1", board).sort()).toEqual(["m1", "s2"]);
+    });
+
+    it("does not touch another goal's steps", () => {
+      const board = [monthly(), step({ id: "s1", parent_id: "somewhere-else" })];
+      expect(priorityIdsToDrop("m1", board)).toEqual(["m1"]);
+    });
+
+    it("removes a lone weekly step without cascading", () => {
+      const board = [monthly(), step({ id: "s1" })];
+      expect(priorityIdsToDrop("s1", board)).toEqual(["s1"]);
+    });
+
+    it("returns nothing for an id that is not on the board", () => {
+      expect(priorityIdsToDrop("ghost", [monthly()])).toEqual([]);
     });
   });
 

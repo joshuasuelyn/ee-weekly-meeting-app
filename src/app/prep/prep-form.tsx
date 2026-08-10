@@ -9,6 +9,8 @@ import {
   createPriority,
   createTodo,
   deleteHeadline,
+  dropPriority,
+  renamePriority,
   setMetricValue,
   setPriorityCheck,
   setSegueField,
@@ -117,6 +119,10 @@ function PriorityRow({
 }) {
   const [onTrack, setOnTrack] = useState<boolean | null>(initial);
   const [, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const text = useAutosave(priority.text, (v) => renamePriority(priority.id, v));
 
   function choose(next: boolean) {
     setOnTrack(next); // optimistic
@@ -130,13 +136,87 @@ function PriorityRow({
       }`}
     >
       <div className="flex-1 min-w-[13rem]">
-        <p className={indent ? "text-[0.95rem]" : "font-medium"}>{priority.text}</p>
+        {editing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={text.value}
+              onChange={(e) => text.update(e.target.value)}
+              autoFocus
+              aria-label="Priority wording"
+              className="flex-1 min-w-[12rem] px-3 py-1.5 rounded-lg border border-(--color-line)"
+            />
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-[0.8rem] underline underline-offset-2"
+            >
+              done
+            </button>
+            <SaveDot state={text.state} />
+          </div>
+        ) : (
+          <p className={indent ? "text-[0.95rem]" : "font-medium"}>{text.value}</p>
+        )}
         <p className="text-[0.82rem] text-(--color-muted)">
           {indent || priority.horizon === "week" ? "step · due" : "this month · due"}{" "}
           {priority.due_date}
           {ownerName ? ` · ${ownerName}` : ""}
           {towards ? ` · toward "${towards}"` : ""}
         </p>
+        {readOnly ? null : (
+          <div className="flex flex-wrap items-center gap-3 mt-1 text-[0.8rem]">
+            {editing ? null : (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-(--color-muted) underline underline-offset-2"
+              >
+                Edit
+              </button>
+            )}
+            {confirmRemove ? (
+              <>
+                <span className="text-(--color-muted)">
+                  {priority.horizon === "month"
+                    ? "Remove this and its weekly steps?"
+                    : "Remove this step?"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    startTransition(async () => {
+                      try {
+                        await dropPriority(priority.id);
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : "Could not remove it.");
+                      }
+                    });
+                  }}
+                  className="text-(--color-off) font-medium underline underline-offset-2"
+                >
+                  Yes, remove
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRemove(false)}
+                  className="text-(--color-muted) underline underline-offset-2"
+                >
+                  Keep it
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmRemove(true)}
+                className="text-(--color-muted) underline underline-offset-2"
+              >
+                Remove
+              </button>
+            )}
+            {error ? <span className="text-(--color-off)">{error}</span> : null}
+          </div>
+        )}
       </div>
       {readOnly ? (
         <span

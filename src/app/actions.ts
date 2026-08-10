@@ -13,6 +13,7 @@ import {
   completionFor,
   issueTextForMetric,
   issueTextForPriority,
+  priorityIdsToDrop,
   MAX_ISSUES_PER_MEETING,
   evaluateMetric,
   currentWeekFor,
@@ -139,6 +140,34 @@ export async function createPriority(formData: FormData) {
 export async function setPriorityStatus(priorityId: string, status: ItemStatus) {
   await requireUser();
   await getStore().updatePriority(priorityId, { status });
+  refresh();
+}
+
+/** Fix the wording. A typo shouldn't be permanent, and rewriting it shouldn't need a delete. */
+export async function renamePriority(priorityId: string, text: string) {
+  await requireUser();
+  const trimmed = text.trim();
+  // An empty priority is unreadable on Monday — refuse rather than persist it. Removing one
+  // is a deliberate act with its own control, not something you fall into by deleting text.
+  if (!trimmed) throw new Error("A priority needs words. Use Remove if you meant to delete it.");
+  await getStore().updatePriority(priorityId, { text: trimmed });
+  refresh();
+}
+
+/**
+ * Takes a priority off the board without erasing it. "dropped" rather than a hard delete:
+ * the weekly steps hanging off it, and any issue it produced, still refer to it, and a
+ * board that can silently lose rows is not a record.
+ */
+export async function dropPriority(priorityId: string) {
+  await requireUser();
+  const store = getStore();
+
+  // A monthly priority takes its open steps with it, or they are left pointing at a goal
+  // that is no longer on anyone's screen. Which ids that means is a rule, not a detail.
+  for (const id of priorityIdsToDrop(priorityId, await store.listPriorities())) {
+    await store.updatePriority(id, { status: "dropped" });
+  }
   refresh();
 }
 

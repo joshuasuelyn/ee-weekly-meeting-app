@@ -176,6 +176,26 @@ export function canAddMonthlyPriority(ownerId: string, priorities: Priority[]): 
     : { allowed: true, message: "" };
 }
 
+/**
+ * Everything that comes off the board when this priority is removed: the priority itself,
+ * plus the open weekly steps hanging off it. A step outliving its goal points at something
+ * nobody can see, and shows up on Monday as work toward a priority that no longer exists.
+ *
+ * Steps already ticked done are left alone — they happened, and the record should say so.
+ */
+export function priorityIdsToDrop(priorityId: string, priorities: Priority[]): string[] {
+  const target = priorities.find((p) => p.id === priorityId);
+  if (!target) return [];
+  if (target.horizon !== "month") return [priorityId];
+
+  return [
+    priorityId,
+    ...priorities
+      .filter((p) => p.parent_id === priorityId && p.status === "open")
+      .map((p) => p.id),
+  ];
+}
+
 export function canParentPriority(parent: Priority, childHorizon: Horizon): Gate {
   if (parent.horizon !== "month") {
     return {
