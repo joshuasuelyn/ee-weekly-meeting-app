@@ -15,6 +15,7 @@ import {
   dropPriority,
   renameIssue,
   renamePriority,
+  reopenPriority,
   setMetricValue,
   setPriorityCheck,
   setPriorityStatus,
@@ -895,7 +896,7 @@ export function PrepForm({
   people: { id: string; name: string }[];
   parentTextById: Record<string, string>;
   alignment: { id: string; text: string }[];
-  closed: Priority[];
+  closed: (Priority & { towards?: string | null })[];
   issues: { id: string; text: string; raisedDate: string }[];
   segue: { personal: string; professional: string };
   segueQuestion: string;
@@ -1033,8 +1034,9 @@ export function PrepForm({
               Off the board ({closed.length})
             </h3>
             <p className="text-[0.85rem] text-(--color-muted) mb-2">
-              Finished or removed. Removing a monthly goal takes its weekly steps with it, so
-              a step you can&rsquo;t find is most likely here.
+              Finished or removed. Removing a monthly goal takes its weekly steps with it, so a
+              step you can&rsquo;t find is most likely here. Reopening a step brings its goal
+              back too — on its own it would be work toward something nobody can see.
             </p>
             <div className="grid gap-1">
               {closed.map((p) => (
@@ -1051,12 +1053,16 @@ export function PrepForm({
                   >
                     {p.status === "done" ? "finished" : "removed"}
                   </span>
-                  {p.horizon === "week" ? (
+                  {p.towards ? (
+                    <span className="text-[0.8rem] text-(--color-muted)">
+                      step toward &ldquo;{p.towards}&rdquo;
+                    </span>
+                  ) : p.horizon === "week" ? (
                     <span className="text-[0.8rem] text-(--color-muted)">step</span>
                   ) : null}
                   <button
                     type="button"
-                    onClick={() => startTransition(() => void setPriorityStatus(p.id, "open"))}
+                    onClick={() => startTransition(() => void reopenPriority(p.id))}
                     className="px-2.5 py-1 rounded-lg text-[0.8rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
                   >
                     Reopen

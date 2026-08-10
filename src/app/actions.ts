@@ -171,6 +171,33 @@ export async function setPriorityStatus(priorityId: string, status: ItemStatus) 
   refresh();
 }
 
+/**
+ * Puts a priority back on the board, with whatever it needs to make sense.
+ *
+ * Reopening a weekly step whose goal is still off the board produces exactly the orphan
+ * that removing a goal was careful to avoid: work toward something nobody can see. So the
+ * goal comes back with it. This is the inverse of priorityIdsToDrop, and for the same
+ * reason — a step and the goal it serves are only meaningful together.
+ */
+export async function reopenPriority(priorityId: string) {
+  await requireUser();
+  const store = getStore();
+
+  const all = await store.listPriorities();
+  const target = all.find((p) => p.id === priorityId);
+  if (!target) return;
+
+  await store.updatePriority(priorityId, { status: "open" });
+
+  if (target.parent_id) {
+    const parent = all.find((p) => p.id === target.parent_id);
+    if (parent && parent.status !== "open") {
+      await store.updatePriority(parent.id, { status: "open" });
+    }
+  }
+  refresh();
+}
+
 /** Fix the wording. A typo shouldn't be permanent, and rewriting it shouldn't need a delete. */
 export async function renamePriority(priorityId: string, text: string) {
   await requireUser();

@@ -267,7 +267,13 @@ export async function loadPrep(user: User) {
           p.due_date >= startOfPreviousMonth(meeting.date),
       )
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .slice(0, 12),
+      .slice(0, 12)
+      // A step off the board on its own says nothing. Carry the goal it served, so the row
+      // reads as work toward something rather than a fragment nobody can place.
+      .map((p) => ({
+        ...p,
+        towards: p.parent_id ? (priorities.find((g) => g.id === p.parent_id)?.text ?? null) : null,
+      })),
     /**
      * My own segue answers. On the prep screen because being asked cold in the room is
      * what makes the round slow and awkward — people deserve a moment to think of
