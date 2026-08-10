@@ -152,16 +152,15 @@ export const STEP_OVERFLOW_PROMPT =
 /**
  * Monthly priorities one department may carry at once.
  *
- * Three, for the same reason issues cap at three and steps cap at three: a list longer
- * than that stops being a set of priorities and becomes a description of the job. Each one
- * has to cascade into weekly steps that the room reviews on Monday, and nobody cascades
- * six goals in five minutes — so the ceiling is what keeps the cascade real rather than
- * decorative.
+ * Deliberately looser than the weekly cap. Naming what a department intends to finish this
+ * month is cheap; it is the *cascade* that costs the meeting time, and that is capped at
+ * MAX_STEPS_PER_WEEK per priority per week. Five leaves room to describe a month honestly
+ * without the board becoming a job description.
  */
-export const MAX_MONTHLY_PRIORITIES = 3;
+export const MAX_MONTHLY_PRIORITIES = 5;
 
 export const MONTHLY_OVERFLOW_PROMPT =
-  "Three is the limit for a month. A fourth would not get cascaded — close or finish one first.";
+  "Five is the limit for a month. Close or finish one before adding another.";
 
 /** Open monthly priorities owned by this person, whatever their scope. */
 export function monthlyPrioritiesFor(ownerId: string, priorities: Priority[]): Priority[] {
