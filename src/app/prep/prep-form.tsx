@@ -14,6 +14,7 @@ import {
   renamePriority,
   setMetricValue,
   setPriorityCheck,
+  setPriorityStatus,
   setSegueField,
   submitPrep,
   updateHeadline,
@@ -127,6 +128,7 @@ function PriorityRow({
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [confirmDone, setConfirmDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const text = useAutosave(priority.text, (v) => renamePriority(priority.id, v));
 
@@ -178,6 +180,43 @@ function PriorityRow({
                 className="text-(--color-muted) underline underline-offset-2"
               >
                 Edit
+              </button>
+            )}
+            {/* Finishing a step is routine and happens weekly, so it goes straight through.
+                Finishing a month's priority is a claim worth a beat of hesitation. */}
+            {editing ? null : priority.horizon === "week" ? (
+              <button
+                type="button"
+                onClick={() => startTransition(() => void setPriorityStatus(priority.id, "done"))}
+                className="text-(--color-on) font-medium underline underline-offset-2"
+              >
+                Done
+              </button>
+            ) : confirmDone ? (
+              <>
+                <span className="text-(--color-muted)">Finished this one?</span>
+                <button
+                  type="button"
+                  onClick={() => startTransition(() => void setPriorityStatus(priority.id, "done"))}
+                  className="text-(--color-on) font-medium underline underline-offset-2"
+                >
+                  Yes, done
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDone(false)}
+                  className="text-(--color-muted) underline underline-offset-2"
+                >
+                  Not yet
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDone(true)}
+                className="text-(--color-on) font-medium underline underline-offset-2"
+              >
+                Done
               </button>
             )}
             {confirmRemove ? (
