@@ -84,7 +84,7 @@ export function IssueList({ issues }: { issues: RunnerIssue[] }) {
             onClick={() => startTransition(() => void dropIssue(i.id))}
             className="text-[0.85rem] text-(--color-muted) underline underline-offset-2"
           >
-            Drop
+            No action needed
           </button>
         </li>
       ))}

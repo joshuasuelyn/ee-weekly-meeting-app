@@ -962,28 +962,30 @@ export function PrepForm({
           </div>
         ) : null}
 
+        {/* Visible rather than tucked behind a disclosure. This is the answer to "I ticked
+            that by mistake", and an answer nobody finds is not one. */}
         {closed.length > 0 ? (
-          <details className="mt-4 pt-3 border-t border-(--color-line)">
-            <summary className="text-[0.85rem] text-(--color-muted) cursor-pointer">
-              Closed this month ({closed.length}) — reopen if something was ticked by mistake
-            </summary>
-            <div className="mt-2 grid gap-1">
+          <div className="mt-4 pt-3 border-t border-(--color-line)">
+            <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
+              Finished this month ({closed.length})
+            </h3>
+            <div className="grid gap-1">
               {closed.map((p) => (
-                <div key={p.id} className="flex flex-wrap items-center gap-3 text-[0.9rem]">
+                <div key={p.id} className="flex flex-wrap items-center gap-3 text-[0.9rem] py-1">
                   <span className="flex-1 min-w-[12rem] text-(--color-muted) line-through">
                     {p.text}
                   </span>
                   <button
                     type="button"
                     onClick={() => startTransition(() => void setPriorityStatus(p.id, "open"))}
-                    className="text-(--color-muted) underline underline-offset-2"
+                    className="px-2.5 py-1 rounded-lg text-[0.8rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
                   >
                     Reopen
                   </button>
                 </div>
               ))}
             </div>
-          </details>
+          </div>
         ) : null}
 
         {grouped.orphanWeeklies.length > 0 ? (

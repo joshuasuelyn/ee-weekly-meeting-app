@@ -829,7 +829,7 @@ function SolvePanel({ data, issue }: { data: RunnerData; issue: RunnerIssue }) {
             }}
             className="px-4 py-2 rounded-xl bg-(--color-on) text-white font-medium disabled:opacity-40"
           >
-            Mark solved
+            Solved
           </button>
           {/* R5 explains itself rather than silently disabling the button. */}
           <p
@@ -945,8 +945,9 @@ export function IdsSection({ data }: { data: RunnerData }) {
                 type="button"
                 onClick={() => startTransition(() => void dropIssue(issue.id))}
                 className="text-[0.85rem] text-(--color-muted) underline underline-offset-2"
+                title="Off the list without a to-do — it wasn't really an issue, or it went away"
               >
-                Drop
+                No action needed
               </button>
             </li>
           ))}
