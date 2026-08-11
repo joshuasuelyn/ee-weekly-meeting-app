@@ -1030,40 +1030,29 @@ export function PrepForm({
             that by mistake", and an answer nobody finds is not one. */}
         {closed.length > 0 ? (
           <div className="mt-4 pt-3 border-t border-(--color-line)">
-            <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-1">
+            {/* One line per item, no preamble. The rules behind this list — that removing a
+                goal takes its steps, and that reopening a step brings its goal back — are
+                worth knowing once, not reading every week, so they live on the button. */}
+            <h3 className="text-[0.8rem] uppercase tracking-wide text-(--color-muted) font-medium mb-2">
               Off the board ({closed.length})
             </h3>
-            <p className="text-[0.85rem] text-(--color-muted) mb-2">
-              Finished or removed. Removing a monthly goal takes its weekly steps with it, so a
-              step you can&rsquo;t find is most likely here. Reopening a step brings its goal
-              back too — on its own it would be work toward something nobody can see.
-            </p>
             <div className="grid gap-1">
               {closed.map((p) => (
-                <div key={p.id} className="flex flex-wrap items-center gap-3 text-[0.9rem] py-1">
-                  <span className="flex-1 min-w-[12rem] text-(--color-muted) line-through">
-                    {p.text}
-                  </span>
-                  <span
-                    className={`pill shrink-0 ${
-                      p.status === "done"
-                        ? "bg-(--color-on-bg) text-(--color-on)"
-                        : "bg-(--color-grey-bg) text-(--color-muted)"
-                    }`}
-                  >
+                <div key={p.id} className="flex flex-wrap items-baseline gap-2 text-[0.9rem] py-1">
+                  <span className="text-(--color-muted) line-through">{p.text}</span>
+                  <span className="text-[0.82rem] text-(--color-muted)">
                     {p.status === "done" ? "finished" : "removed"}
+                    {p.towards ? ` · from “${p.towards}”` : ""}
                   </span>
-                  {p.towards ? (
-                    <span className="text-[0.8rem] text-(--color-muted)">
-                      step toward &ldquo;{p.towards}&rdquo;
-                    </span>
-                  ) : p.horizon === "week" ? (
-                    <span className="text-[0.8rem] text-(--color-muted)">step</span>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => startTransition(() => void reopenPriority(p.id))}
-                    className="px-2.5 py-1 rounded-lg text-[0.8rem] font-medium border border-(--color-line) text-(--color-muted) hover:bg-(--color-grey-bg)"
+                    title={
+                      p.towards
+                        ? `Puts this back, along with “${p.towards}” if that was removed too`
+                        : "Puts this back on the board"
+                    }
+                    className="ml-auto text-[0.82rem] text-(--color-muted) underline underline-offset-2"
                   >
                     Reopen
                   </button>
