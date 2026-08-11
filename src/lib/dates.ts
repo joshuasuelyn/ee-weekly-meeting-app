@@ -68,6 +68,30 @@ export function nextMeetingDate(latestMeetingDate: string | null, from: string):
   return target;
 }
 
+/**
+ * Has the week moved on from a meeting that already happened?
+ *
+ * A meeting nobody closed stays "current" indefinitely, so someone sitting down on Saturday
+ * to think about the week ahead was still being asked about the week just gone. From
+ * Saturday the app rolls to the coming Monday on its own — which is when people actually
+ * prepare, and it should not depend on the facilitator having remembered to close anything.
+ *
+ * Tuesday to Friday it deliberately does not roll: that meeting is still the current one,
+ * and its to-dos are still the ones being worked on.
+ */
+export function weekHasMovedOn(meetingDate: string, from: string): boolean {
+  if (meetingDate >= from) return false;
+
+  // The weekend belongs to the week just gone by the calendar, but not in anyone's head:
+  // Saturday is when you think about Monday. Roll early.
+  const day = parseDate(from).getUTCDay(); // 0 Sun … 6 Sat
+  if (day === 6 || day === 0) return true;
+
+  // And roll regardless once a later week has started — otherwise a meeting nobody closed
+  // stays "current" forever, and next Monday opens last Monday's.
+  return mondayOf(from) > meetingDate;
+}
+
 export function formatDate(s: string): string {
   return parseDate(s).toLocaleDateString("en-GB", {
     day: "numeric",

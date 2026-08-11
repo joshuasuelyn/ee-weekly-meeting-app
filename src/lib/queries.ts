@@ -10,6 +10,7 @@ import {
   nextMonday,
   startOfPreviousMonth,
   toDateString,
+  weekHasMovedOn,
 } from "./dates";
 import { segueQuestionFor } from "./segue";
 import {
@@ -57,10 +58,15 @@ export function targetMeetingDate(from = today()): string {
 export async function getOrCreateCurrentMeeting(): Promise<Meeting> {
   const store = getStore();
   const meetings = await store.listMeetings(); // newest first
-  const openMeeting = meetings.find((m) => m.status !== "closed");
-  if (openMeeting) return openMeeting;
+  const now = today();
 
-  return store.createMeeting(nextMeetingDate(meetings[0]?.date ?? null, today()));
+  // An open meeting stays the current one through the week it belongs to. Come the weekend
+  // it does not: whoever opens the app on Saturday is thinking about the week ahead, and
+  // should be asked about that week rather than the one that has just finished.
+  const openMeeting = meetings.find((m) => m.status !== "closed");
+  if (openMeeting && !weekHasMovedOn(openMeeting.date, now)) return openMeeting;
+
+  return store.createMeeting(nextMeetingDate(meetings[0]?.date ?? null, now));
 }
 
 export interface MeetingContext {

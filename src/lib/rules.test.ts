@@ -29,6 +29,7 @@ import {
   weeksOpen,
   stepPrompt,
 } from "./rules";
+import { weekHasMovedOn } from "./dates";
 import {
   endOfMonth,
   isFirstMondayOfMonth,
@@ -580,6 +581,39 @@ describe("priorities — scope, and monthly broken into weekly", () => {
     it("does not count weekly steps against the monthly cap", () => {
       const mixed = [...owned(2), step({ id: "s9" }), step({ id: "s8" })];
       expect(canAddMonthlyPriority("u1", mixed).allowed).toBe(true);
+    });
+  });
+
+  describe("the week rolling over at the weekend", () => {
+    // Mon 17 Aug 2026 is a Monday; 22nd is Sat, 23rd Sun, 24th the next Monday.
+    it("keeps an upcoming meeting", () => {
+      expect(weekHasMovedOn("2026-08-17", "2026-08-14")).toBe(false);
+    });
+
+    it("keeps it on the day itself", () => {
+      expect(weekHasMovedOn("2026-08-17", "2026-08-17")).toBe(false);
+    });
+
+    it("keeps it Tuesday to Friday — those to-dos are still the live ones", () => {
+      for (const d of ["2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21"]) {
+        expect(weekHasMovedOn("2026-08-17", d)).toBe(false);
+      }
+    });
+
+    it("moves on from Saturday, so weekend prep is about the week ahead", () => {
+      expect(weekHasMovedOn("2026-08-17", "2026-08-22")).toBe(true);
+      expect(weekHasMovedOn("2026-08-17", "2026-08-23")).toBe(true);
+    });
+
+    it("does not move on from a meeting that has not happened yet, whatever the day", () => {
+      expect(weekHasMovedOn("2026-08-24", "2026-08-22")).toBe(false);
+    });
+
+    // Without this a meeting nobody closed stays current forever, and the following Monday
+    // opens the previous Monday's.
+    it("moves on once a later week has started, even midweek", () => {
+      expect(weekHasMovedOn("2026-08-17", "2026-08-24")).toBe(true);
+      expect(weekHasMovedOn("2026-08-17", "2026-08-26")).toBe(true);
     });
   });
 
