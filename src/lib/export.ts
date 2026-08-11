@@ -98,7 +98,7 @@ export function meetingToMarkdown(ctx: MeetingContext): string {
       lines.push(
         `- **${g.parent.text}** — ${name(g.parent.owner_id)}${heading === "Department" ? ` (${dept})` : ""}, ` +
           `due ${g.parent.due_date} — ${mark(g.parent.id)}` +
-          (g.needsStep ? " · _no step this week_" : ""),
+          (g.needsStep ? " · _no step for the week ahead_" : ""),
       );
       for (const s of g.steps) {
         lines.push(`  - ${s.text} — ${name(s.owner_id)}, due ${s.due_date} — ${mark(s.id)}`);

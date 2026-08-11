@@ -965,11 +965,11 @@ export function PrepForm({
       <Card className="p-5">
         <SectionTitle
           title="My priorities"
-          hint="On or off. Off-track drops into Issues at the meeting — no explanation needed here."
+          hint="Each monthly priority needs one thing that will be visibly done by next Monday."
           right={
             unstepped > 0 ? (
               <span className="pill bg-(--color-amber-bg) text-(--color-amber)">
-                {unstepped} with no step this week
+                {unstepped} need a step for the week ahead
               </span>
             ) : null
           }
