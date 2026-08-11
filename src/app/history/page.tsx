@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/db";
 import { formatDate } from "@/lib/dates";
 import { COMPLETION_TARGET } from "@/lib/rules";
+import { today } from "@/lib/queries";
 import { Card, Empty, SectionTitle } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function HistoryPage() {
   ]);
 
   const closed = meetings.filter((m) => m.status === "closed");
+  const todayDate = today();
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -55,7 +57,23 @@ export default async function HistoryPage() {
                         {formatDate(m.date)}
                       </Link>
                     </td>
-                    <td className="py-2.5 px-3 text-(--color-muted)">{m.status}</td>
+                    {/* A meeting in the past that was never closed has no locked completion
+                        percentage and no rating in the record. The week rolls past it on its
+                        own now, so it costs nothing — but it should not look finished. */}
+                    <td
+                      className={`py-2.5 px-3 ${
+                        m.status !== "closed" && m.date < todayDate
+                          ? "text-(--color-amber) font-medium"
+                          : "text-(--color-muted)"
+                      }`}
+                      title={
+                        m.status !== "closed" && m.date < todayDate
+                          ? "Never closed — open it to finish and lock in the week's numbers"
+                          : undefined
+                      }
+                    >
+                      {m.status !== "closed" && m.date < todayDate ? "not closed" : m.status}
+                    </td>
                     <td
                       className={`py-2.5 px-3 tabular-nums font-semibold ${
                         m.completion_pct == null
