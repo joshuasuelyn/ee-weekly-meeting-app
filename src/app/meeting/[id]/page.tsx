@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { applyCarryForwardFor, loadMeetingContext } from "@/lib/queries";
+import { applyCarryForwardFor, loadMeetingContext, today } from "@/lib/queries";
 import { todoDueDateFor } from "@/lib/rules";
 import { buildRunnerData } from "./data";
 import { Runner } from "./runner";
@@ -23,7 +23,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
   const carried = await applyCarryForwardFor(first.meeting);
 
   const ctx = carried ? await loadMeetingContext(first.meeting.id) : first;
-  const data = buildRunnerData(ctx, user, todoDueDateFor(ctx.meeting.date));
+  const data = buildRunnerData(ctx, user, todoDueDateFor(ctx.meeting.date), today());
 
   return <Runner data={data} />;
 }

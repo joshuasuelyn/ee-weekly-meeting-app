@@ -618,29 +618,38 @@ describe("priorities — scope, and monthly broken into weekly", () => {
   });
 
   describe("why a step is being asked for", () => {
+    // MEETING is Mon 2026-08-10. Sat 15th and Sun 16th are the planning weekend.
+    const WEEKDAY = "2026-08-12";
+    const SATURDAY = "2026-08-15";
+
     it("says nothing when the week ahead is covered", () => {
       const board = [monthly(), step({ due_date: "2026-08-17" })];
-      expect(stepPrompt("m1", board, MEETING).needsStep).toBe(false);
+      expect(stepPrompt("m1", board, MEETING, WEEKDAY).needsStep).toBe(false);
     });
 
-    // The case that reads as a bug: a step due on the meeting day is the one being
-    // reviewed this morning, so the week ahead genuinely has nothing in it.
-    it("names the step that has just come due, rather than claiming there is none", () => {
+    // The point of the change: work is in flight, so mid-week there is nothing to say.
+    it("stays quiet mid-week while a step is still open", () => {
       const board = [monthly(), step({ text: "Zoom presentation on BPA", due_date: MEETING })];
-      const prompt = stepPrompt("m1", board, MEETING);
+      expect(stepPrompt("m1", board, MEETING, WEEKDAY).needsStep).toBe(false);
+    });
+
+    it("asks at the weekend if that step still isn't finished", () => {
+      const board = [monthly(), step({ text: "Zoom presentation on BPA", due_date: MEETING })];
+      const prompt = stepPrompt("m1", board, MEETING, SATURDAY);
       expect(prompt.needsStep).toBe(true);
       expect(prompt.short).toBe("needs next step");
       expect(prompt.message).toContain("Zoom presentation on BPA");
-      expect(prompt.message).toContain("week ahead");
     });
 
-    it("does not name a step that was already finished", () => {
+    it("stays quiet at the weekend once it is finished", () => {
       const board = [monthly(), step({ due_date: MEETING, status: "done" })];
-      expect(stepPrompt("m1", board, MEETING).short).toBe("no step yet");
+      expect(stepPrompt("m1", board, MEETING, SATURDAY).short).toBe("no step yet");
     });
 
-    it("says there is none at all when the goal was never broken down", () => {
-      expect(stepPrompt("m1", [monthly()], MEETING).short).toBe("no step yet");
+    // A goal never broken down is the failure the cascade exists to prevent — say it at once.
+    it("asks straight away when the goal has no step at all, any day", () => {
+      expect(stepPrompt("m1", [monthly()], MEETING, WEEKDAY).short).toBe("no step yet");
+      expect(stepPrompt("m1", [monthly()], MEETING, SATURDAY).short).toBe("no step yet");
     });
   });
 

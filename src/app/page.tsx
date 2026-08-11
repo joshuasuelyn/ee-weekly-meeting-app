@@ -15,7 +15,7 @@ export default async function HomePage() {
   if (!user) redirect("/login");
 
   const ctx = await loadMeetingContext();
-  const data = buildRunnerData(ctx, user, todoDueDateFor(ctx.meeting.date));
+  const data = buildRunnerData(ctx, user, todoDueDateFor(ctx.meeting.date), today());
 
   const notSubmitted = ctx.users.filter(
     (u) => u.role !== "contributor" && !ctx.submissions.some((s) => s.user_id === u.id),

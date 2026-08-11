@@ -92,6 +92,12 @@ export function weekHasMovedOn(meetingDate: string, from: string): boolean {
   return mondayOf(from) > meetingDate;
 }
 
+/** Saturday or Sunday — when people plan the week rather than work it. */
+export function isPlanningWeekend(from: string): boolean {
+  const day = parseDate(from).getUTCDay(); // 0 Sun … 6 Sat
+  return day === 6 || day === 0;
+}
+
 export function formatDate(s: string): string {
   return parseDate(s).toLocaleDateString("en-GB", {
     day: "numeric",

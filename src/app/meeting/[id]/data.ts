@@ -136,6 +136,8 @@ export function buildRunnerData(
   ctx: MeetingContext,
   currentUser: User,
   defaultDueDate: string,
+  /** Today, so a goal with work still in flight is not prompted mid-week. */
+  todayDate: string,
 ): RunnerData {
   const name = (id: string) => ctx.usersById.get(id)?.name ?? "Unassigned";
   const mapTodo = (t: MeetingContext["todos"][number]) => toRunnerTodo(t, ctx);
@@ -201,11 +203,11 @@ export function buildRunnerData(
       scope: p.scope,
       parentId: p.parent_id,
       needsStep:
-        p.horizon !== "week" && stepPrompt(p.id, ctx.priorities, ctx.meeting.date).needsStep,
+        p.horizon !== "week" && stepPrompt(p.id, ctx.priorities, ctx.meeting.date, todayDate).needsStep,
       stepNote:
-        p.horizon === "week" ? "" : stepPrompt(p.id, ctx.priorities, ctx.meeting.date).short,
+        p.horizon === "week" ? "" : stepPrompt(p.id, ctx.priorities, ctx.meeting.date, todayDate).short,
       stepReason:
-        p.horizon === "week" ? "" : stepPrompt(p.id, ctx.priorities, ctx.meeting.date).message,
+        p.horizon === "week" ? "" : stepPrompt(p.id, ctx.priorities, ctx.meeting.date, todayDate).message,
     })),
     reviewTodos: ctx.reviewTodos.map(mapTodo),
     newTodos: ctx.todos.filter((t) => t.created_meeting_id === ctx.meeting.id).map(mapTodo),

@@ -4,7 +4,7 @@
 // format. They are kept free of I/O so they can be tested without a database, and so the
 // UI has exactly one place to ask "is this red?" rather than deciding for itself.
 
-import { addDays, daysBetween, nextMonday, rolloutWeek } from "./dates";
+import { addDays, daysBetween, isPlanningWeekend, nextMonday, rolloutWeek } from "./dates";
 import type {
   Horizon,
   Issue,
@@ -297,6 +297,7 @@ export function stepPrompt(
   parentId: string,
   priorities: Priority[],
   meetingDate: string,
+  today: string,
 ): { needsStep: boolean; short: string; message: string } {
   if (stepsThisWeek(parentId, priorities, meetingDate).length > 0) {
     return { needsStep: false, short: "", message: "" };
@@ -305,16 +306,24 @@ export function stepPrompt(
   const openBehind = stepsFor(parentId, priorities).filter(
     (s) => s.status === "open" && s.due_date <= meetingDate,
   );
+
+  // A goal with a step still in flight is not neglected — it is mid-week. Asking on Tuesday
+  // what will happen *after* the thing currently being worked on is noise, and noise is what
+  // teaches people to scroll past amber. It waits until the working week is done, which is
+  // also when the app starts pointing at the coming Monday.
   if (openBehind.length > 0) {
+    if (!isPlanningWeekend(today)) return { needsStep: false, short: "", message: "" };
     return {
       needsStep: true,
       short: "needs next step",
       message:
-        `"${openBehind[0].text}" was this week's step and is still open. ` +
+        `"${openBehind[0].text}" hasn't been finished. ` +
         "What moves this forward in the week ahead?",
     };
   }
 
+  // Nothing at all, ever: that is the failure the whole cascade exists to prevent, and it
+  // is worth saying on day one rather than at the weekend.
   return { needsStep: true, short: "no step yet", message: NO_STEP_PROMPT };
 }
 
@@ -362,6 +371,8 @@ export function groupPriorities(
    * is already covered. Defaults to `mine` for callers that pass the whole board.
    */
   all: Priority[] = mine,
+  /** Today, so a mid-week goal with work in flight is left alone until the weekend. */
+  today: string = meetingDate,
 ): GroupedPriorities {
   const byCreated = (a: Priority, b: Priority) => a.created_at.localeCompare(b.created_at);
 
@@ -372,8 +383,8 @@ export function groupPriorities(
     return {
       parent,
       steps: stepsFor(parent.id, all),
-      needsStep: thisWeek.length === 0,
-      stepReason: stepPrompt(parent.id, all, meetingDate).message,
+      needsStep: stepPrompt(parent.id, all, meetingDate, today).needsStep,
+      stepReason: stepPrompt(parent.id, all, meetingDate, today).message,
       atStepCap: thisWeek.length >= MAX_STEPS_PER_WEEK,
     };
   };
